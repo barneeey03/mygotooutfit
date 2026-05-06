@@ -12,15 +12,33 @@ import InvoiceDetailDialog from '@/components/invoice-detail-dialog';
 export default function InvoicesPage() {
   const { invoices, orders, addInvoice, updateInvoice, deleteInvoice } = useData();
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('date-desc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const filteredInvoices = invoices.filter(inv =>
-    inv.id.includes(searchTerm) ||
+    inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inv.status.includes(searchTerm)
+    inv.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const sortedInvoices = [...filteredInvoices].sort((a, b) => {
+    switch (sortOption) {
+      case 'id-asc':
+        return a.id.localeCompare(b.id);
+      case 'date-desc':
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'dueDate-asc':
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      case 'amount-desc':
+        return b.total - a.total;
+      case 'status-asc':
+        return a.status.localeCompare(b.status);
+      default:
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    }
+  });
 
   const handleAddInvoice = async (invoice: Omit<Invoice, 'id'>) => {
     try {
@@ -158,15 +176,34 @@ export default function InvoicesPage() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search invoices..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 border-primary/20"
-        />
+      {/* Search + Sort */}
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search invoices..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 border-primary/20"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <label htmlFor="invoice-sort" className="text-sm font-medium text-muted-foreground">
+            Sort by
+          </label>
+          <select
+            id="invoice-sort"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+          >
+            <option value="date-desc">Date (Newest)</option>
+            <option value="dueDate-asc">Due Date (Soonest)</option>
+            <option value="amount-desc">Amount (High to Low)</option>
+            <option value="status-asc">Status</option>
+            <option value="id-asc">Invoice #</option>
+          </select>
+        </div>
       </div>
 
       {/* Invoices Table */}
@@ -198,9 +235,9 @@ export default function InvoicesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredInvoices.map((invoice) => (
+                  {sortedInvoices.map((invoice, index) => (
                     <tr key={invoice.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 px-4 font-medium text-primary">#{invoice.id.slice(0, 6)}</td>
+                      <td className="py-3 px-4 font-medium text-primary">#{String(index + 1).padStart(3, '0')}</td>
                       <td className="py-3 px-4">{invoice.customerName}</td>
                       <td className="py-3 px-4 text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
                       <td className="py-3 px-4 text-muted-foreground">{new Date(invoice.dueDate).toLocaleDateString()}</td>

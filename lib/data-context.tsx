@@ -20,6 +20,7 @@ export interface Product {
   category: string;
   quantity: number;
   unitPrice: number;
+  sellingPrice: number;
   reorderLevel: number;
   supplier: string;
 }
@@ -106,9 +107,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const productsData: Product[] = [];
       snapshot.forEach((doc) => {
+        const data = doc.data() as Record<string, any>;
         productsData.push({
           id: doc.id,
-          ...doc.data(),
+          ...data,
+          sellingPrice: data.sellingPrice ?? 0,
         } as Product);
       });
       setProducts(productsData);

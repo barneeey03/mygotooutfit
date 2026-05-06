@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { useData, Order } from '@/lib/data-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Plus, Eye, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ShoppingCart, Plus, Eye, Trash2, Search } from 'lucide-react';
 import OrderDialog from '@/components/order-dialog';
 import OrderDetailDialog from '@/components/order-detail-dialog';
 
@@ -46,6 +47,32 @@ export default function OrdersPage() {
     }
   };
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('date-desc');
+
+  const filteredOrders = orders.filter(order =>
+    order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.items.some(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    switch (sortOption) {
+      case 'date-asc':
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case 'date-desc':
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'total-desc':
+        return b.total - a.total;
+      case 'items-desc':
+        return b.items.length - a.items.length;
+      case 'status-asc':
+        return a.status.localeCompare(b.status);
+      default:
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    }
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -79,76 +106,104 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* Orders Grid */}
-      {orders.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <ShoppingCart className="w-12 h-12 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">No orders yet</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {orders.map(order => {
-            const itemCount = order.items.length;
-            return (
-              <Card key={order.id} className="border-primary/20 hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-base">Order #{order.id.slice(0, 8)}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(order.date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Items</p>
-                    <p className="text-lg font-semibold">{itemCount} item{itemCount !== 1 ? 's' : ''}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total</p>
-                    <p className="text-2xl font-bold text-primary">฿{order.total.toLocaleString()}</p>
-                  </div>
-                  {order.notes && (
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                      <p className="text-sm text-foreground">{order.notes}</p>
-                    </div>
-                  )}
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setDetailDialogOpen(true);
-                      }}
-                      className="flex-1 text-primary hover:bg-primary/10"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Details
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteOrder(order.id)}
-                      className="text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search orders..."
+            value={searchTerm}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+            className="pl-10 border-primary/20"
+          />
         </div>
-      )}
+        <div className="flex items-center gap-3">
+          <label htmlFor="order-sort" className="text-sm font-medium text-muted-foreground">
+            Sort by
+          </label>
+          <select
+            id="order-sort"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+          >
+            <option value="date-desc">Date (Newest)</option>
+            <option value="date-asc">Date (Oldest)</option>
+            <option value="total-desc">Total (High to Low)</option>
+            <option value="items-desc">Items (High to Low)</option>
+            <option value="status-asc">Status</option>
+          </select>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5 text-primary" />
+            Orders ({filteredOrders.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sortedOrders.length === 0 ? (
+            <div className="text-center py-8">
+              <ShoppingCart className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">No orders found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/10">
+                    <th className="text-left py-3 px-4 font-semibold">Order #</th>
+                    <th className="text-left py-3 px-4 font-semibold">Date</th>
+                    <th className="text-left py-3 px-4 font-semibold">Items</th>
+                    <th className="text-left py-3 px-4 font-semibold">Status</th>
+                    <th className="text-right py-3 px-4 font-semibold">Total</th>
+                    <th className="text-left py-3 px-4 font-semibold">Notes</th>
+                    <th className="text-right py-3 px-4 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedOrders.map((order, index) => (
+                    <tr key={order.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
+                      <td className="py-3 px-4 text-xs text-muted-foreground font-medium">#{String(index + 1).padStart(3, '0')}</td>
+                      <td className="py-3 px-4 text-muted-foreground">{new Date(order.date).toLocaleDateString()}</td>
+                      <td className="py-3 px-4 font-medium">{order.items.length}</td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold">฿{order.total.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-muted-foreground truncate max-w-[200px]">{order.notes || '-'}</td>
+                      <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setDetailDialogOpen(true);
+                          }}
+                          className="text-primary hover:bg-primary/10"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Create Order Dialog */}
       <OrderDialog

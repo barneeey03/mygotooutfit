@@ -11,14 +11,37 @@ import InventoryDialog from '@/components/inventory-dialog';
 export default function InventoryPage() {
   const { products, addProduct, updateProduct, deleteProduct } = useData();
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('name-asc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+    p.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sortOption) {
+      case 'id-asc':
+        return a.id.localeCompare(b.id);
+      case 'name-asc':
+        return a.name.localeCompare(b.name);
+      case 'category-asc':
+        return a.category.localeCompare(b.category);
+      case 'quantity-desc':
+        return b.quantity - a.quantity;
+      case 'unitPrice-desc':
+        return b.unitPrice - a.unitPrice;
+      case 'sellingPrice-desc':
+        return b.sellingPrice - a.sellingPrice;
+      case 'stockValue-desc':
+        return (b.quantity * b.unitPrice) - (a.quantity * a.unitPrice);
+      default:
+        return a.name.localeCompare(b.name);
+    }
+  });
 
   const handleAddProduct = async (product: Omit<Product, 'id'>) => {
     try {
@@ -72,15 +95,36 @@ export default function InventoryPage() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search products..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 border-primary/20"
-        />
+      {/* Search + Sort */}
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 border-primary/20"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <label htmlFor="inventory-sort" className="text-sm font-medium text-muted-foreground">
+            Sort by
+          </label>
+          <select
+            id="inventory-sort"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+          >
+            <option value="name-asc">Product Name</option>
+            <option value="id-asc">Product ID</option>
+            <option value="category-asc">Category</option>
+            <option value="quantity-desc">Quantity (High to Low)</option>
+            <option value="unitPrice-desc">Unit Price (High to Low)</option>
+            <option value="sellingPrice-desc">Selling Price (High to Low)</option>
+            <option value="stockValue-desc">Stock Value (High to Low)</option>
+          </select>
+        </div>
       </div>
 
       {/* Inventory Table */}
@@ -102,27 +146,31 @@ export default function InventoryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 font-semibold">Product ID</th>
                     <th className="text-left py-3 px-4 font-semibold">Product Name</th>
                     <th className="text-left py-3 px-4 font-semibold">Category</th>
                     <th className="text-left py-3 px-4 font-semibold">Supplier</th>
                     <th className="text-right py-3 px-4 font-semibold">Quantity</th>
                     <th className="text-right py-3 px-4 font-semibold">Unit Price</th>
+                    <th className="text-right py-3 px-4 font-semibold">Selling Price</th>
                     <th className="text-right py-3 px-4 font-semibold">Stock Value</th>
                     <th className="text-center py-3 px-4 font-semibold">Status</th>
                     <th className="text-right py-3 px-4 font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product) => {
+                  {sortedProducts.map((product, index) => {
                     const stockValue = product.quantity * product.unitPrice;
                     const isLowStock = product.quantity <= product.reorderLevel;
                     return (
                       <tr key={product.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
+                        <td className="py-3 px-4 text-xs text-muted-foreground font-medium">#{String(index + 1).padStart(3, '0')}</td>
                         <td className="py-3 px-4 font-medium">{product.name}</td>
                         <td className="py-3 px-4 text-muted-foreground">{product.category}</td>
                         <td className="py-3 px-4 text-muted-foreground">{product.supplier}</td>
                         <td className="py-3 px-4 text-right font-medium">{product.quantity}</td>
                         <td className="py-3 px-4 text-right">฿{product.unitPrice.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right">฿{product.sellingPrice.toLocaleString()}</td>
                         <td className="py-3 px-4 text-right font-semibold">฿{stockValue.toLocaleString()}</td>
                         <td className="py-3 px-4 text-center">
                           {isLowStock ? (

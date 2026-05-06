@@ -33,6 +33,7 @@ export default function InventoryDialog({
     category: '',
     quantity: 0,
     unitPrice: 0,
+    sellingPrice: 0,
     reorderLevel: 0,
     supplier: '',
   });
@@ -45,6 +46,7 @@ export default function InventoryDialog({
         category: product.category,
         quantity: product.quantity,
         unitPrice: product.unitPrice,
+        sellingPrice: product.sellingPrice,
         reorderLevel: product.reorderLevel,
         supplier: product.supplier,
       });
@@ -54,6 +56,7 @@ export default function InventoryDialog({
         category: '',
         quantity: 0,
         unitPrice: 0,
+        sellingPrice: 0,
         reorderLevel: 0,
         supplier: '',
       });
@@ -62,7 +65,7 @@ export default function InventoryDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.category || !formData.supplier) {
+    if (!formData.name || !formData.category || !formData.supplier || formData.sellingPrice <= 0) {
       alert('Please fill in all required fields');
       return;
     }
@@ -152,17 +155,31 @@ export default function InventoryDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="reorderLevel">Reorder Level</Label>
-            <Input
-              id="reorderLevel"
-              type="number"
-              value={formData.reorderLevel}
-              onChange={(e) => setFormData({ ...formData, reorderLevel: parseInt(e.target.value) || 0 })}
-              placeholder="Alert when stock falls below this"
-              className="border-primary/20"
-              disabled={isSaving}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="sellingPrice">Selling Price (฿)</Label>
+              <Input
+                id="sellingPrice"
+                type="number"
+                step="0.01"
+                value={formData.sellingPrice}
+                onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
+                className="border-primary/20"
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reorderLevel">Reorder Level</Label>
+              <Input
+                id="reorderLevel"
+                type="number"
+                value={formData.reorderLevel}
+                onChange={(e) => setFormData({ ...formData, reorderLevel: parseInt(e.target.value) || 0 })}
+                placeholder="Alert when stock falls below this"
+                className="border-primary/20"
+                disabled={isSaving}
+              />
+            </div>
           </div>
 
           <DialogFooter>
@@ -176,5 +193,4 @@ export default function InventoryDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
+  )}

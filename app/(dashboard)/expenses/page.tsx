@@ -14,13 +14,32 @@ const expenseCategories = ['Supplies', 'Transportation', 'Rent', 'Utilities', 'S
 export default function ExpensesPage() {
   const { expenses, addExpense, updateExpense, deleteExpense } = useData();
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('date-desc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const filteredExpenses = expenses.filter(e =>
     e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.category.toLowerCase().includes(searchTerm.toLowerCase())
+    e.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.paymentMethod.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+    switch (sortOption) {
+      case 'date-asc':
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case 'date-desc':
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'amount-desc':
+        return b.amount - a.amount;
+      case 'category-asc':
+        return a.category.localeCompare(b.category);
+      case 'paymentMethod-asc':
+        return a.paymentMethod.localeCompare(b.paymentMethod);
+      default:
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    }
+  });
 
   const handleAddExpense = async (expense: Omit<Expense, 'id'>) => {
     try {
@@ -109,7 +128,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(totalExpenses / 1000).toFixed(1)}K
+              ฿{(totalExpenses / 1000).toFixed(1)}K
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {expenses.length} transactions
@@ -124,7 +143,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {expenses.length > 0 ? (totalExpenses / expenses.length).toLocaleString() : 0}
+              {expenses.length > 0 ? `฿${(totalExpenses / expenses.length).toLocaleString()}` : '฿0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Average amount
@@ -139,7 +158,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {monthlyExpenses.length > 0 ? (monthlyExpenses[monthlyExpenses.length - 1].amount / 1000).toFixed(1) : 0}K
+              {monthlyExpenses.length > 0 ? `฿${(monthlyExpenses[monthlyExpenses.length - 1].amount / 1000).toFixed(1)}K` : '฿0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Current month
@@ -202,15 +221,34 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search expenses..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 border-primary/20"
-        />
+      {/* Search + Sort */}
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search expenses..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 border-primary/20"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <label htmlFor="expense-sort" className="text-sm font-medium text-muted-foreground">
+            Sort by
+          </label>
+          <select
+            id="expense-sort"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+          >
+            <option value="date-desc">Date (Newest)</option>
+            <option value="date-asc">Date (Oldest)</option>
+            <option value="amount-desc">Amount (High to Low)</option>
+            <option value="category-asc">Category</option>
+            <option value="paymentMethod-asc">Payment Method</option>
+          </select>
+        </div>
       </div>
 
       {/* Expenses Table */}
@@ -241,7 +279,7 @@ export default function ExpensesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredExpenses.map((expense) => (
+                  {sortedExpenses.map((expense) => (
                     <tr key={expense.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
                       <td className="py-3 px-4">{new Date(expense.date).toLocaleDateString()}</td>
                       <td className="py-3 px-4">
