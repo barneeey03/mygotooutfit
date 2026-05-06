@@ -11,8 +11,8 @@ import { AlertCircle } from 'lucide-react';
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@mygotooutfit.com');
+  const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -82,7 +82,7 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6 p-4 rounded-lg bg-pink-50 border border-primary/20">
-              <p className="text-sm font-medium mb-2 text-foreground">Demo Credentials:</p>
+              <p className="text-sm font-medium mb-2 text-foreground">Admin Credentials:</p>
               <p className="text-xs text-foreground">Email: admin@mygotooutfit.com</p>
               <p className="text-xs text-foreground">Password: password123</p>
             </div>

@@ -1,13 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  signOut as firebaseSignOut, 
-  onAuthStateChanged,
-  User as FirebaseUser 
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 
 interface User {
   id: string;
@@ -24,38 +17,44 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Admin credentials
+const ADMIN_EMAIL = 'admin@mygotooutfit.com';
+const ADMIN_PASSWORD = 'password123';
+const ADMIN_USER: User = {
+  id: 'admin-001',
+  email: ADMIN_EMAIL,
+  name: 'Admin User',
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Listen to Firebase auth state
+  // Check if user is logged in on mount
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        setUser({
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          name: firebaseUser.displayName || firebaseUser.email || 'User',
-        });
-      } else {
-        setUser(null);
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem('user');
       }
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
+    }
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      setUser(ADMIN_USER);
+      localStorage.setItem('user', JSON.stringify(ADMIN_USER));
+    } else {
       throw new Error('Invalid email or password');
     }
   };
 
   const logout = () => {
-    firebaseSignOut(auth);
+    setUser(null);
+    localStorage.removeItem('user');
   };
 
   return (
