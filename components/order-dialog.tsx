@@ -17,7 +17,7 @@ import { Trash2, Plus } from 'lucide-react';
 interface OrderDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (order: any) => void;
+  onSave: (order: any) => Promise<void>;
   products: Product[];
 }
 
@@ -29,6 +29,7 @@ export default function OrderDialog({
 }: OrderDialogProps) {
   const [items, setItems] = useState<Omit<OrderItem, 'subtotal'>[]>([]);
   const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const addItem = () => {
     setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0 }]);
@@ -60,7 +61,7 @@ export default function OrderDialog({
     return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
       alert('Please add at least one item to the order');
@@ -72,16 +73,23 @@ export default function OrderDialog({
       subtotal: item.quantity * item.unitPrice,
     }));
 
-    onSave({
-      date: new Date().toISOString().split('T')[0],
-      items: orderItems,
-      total: calculateTotal(),
-      status: 'pending' as const,
-      notes,
-    });
-
-    setItems([]);
-    setNotes('');
+    setIsSaving(true);
+    try {
+      await onSave({
+        date: new Date().toISOString().split('T')[0],
+        items: orderItems,
+        total: calculateTotal(),
+        status: 'pending' as const,
+        notes,
+      });
+      setItems([]);
+      setNotes('');
+    } catch (error) {
+      alert('Failed to create order');
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -184,11 +192,11 @@ export default function OrderDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white">
-              Create Order
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white" disabled={isSaving}>
+              {isSaving ? 'Creating...' : 'Create Order'}
             </Button>
           </DialogFooter>
         </form>

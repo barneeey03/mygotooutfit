@@ -1,6 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { 
+  signInWithEmailAndPassword, 
+  signOut as firebaseSignOut, 
+  onAuthStateChanged,
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 interface User {
   id: string;
@@ -21,37 +28,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if user is logged in on mount
+  // Listen to Firebase auth state
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem('user');
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        setUser({
+          id: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          name: firebaseUser.displayName || firebaseUser.email || 'User',
+        });
+      } else {
+        setUser(null);
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Hardcoded credentials for demo
-    if (email === 'admin@mygotooutfit.com' && password === 'password123') {
-      const userData: User = {
-        id: '1',
-        email,
-        name: 'Admin User',
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-    } else {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
       throw new Error('Invalid email or password');
     }
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+    firebaseSignOut(auth);
   };
 
   return (

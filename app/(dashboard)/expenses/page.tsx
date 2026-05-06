@@ -22,26 +22,35 @@ export default function ExpensesPage() {
     e.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = {
-      ...expense,
-      id: Date.now().toString(),
-    };
-    addExpense(newExpense);
-    setIsDialogOpen(false);
+  const handleAddExpense = async (expense: Omit<Expense, 'id'>) => {
+    try {
+      await addExpense(expense);
+      setIsDialogOpen(false);
+    } catch (error) {
+      alert('Failed to add expense');
+      console.error(error);
+    }
   };
 
-  const handleUpdateExpense = (expense: Partial<Expense>) => {
+  const handleUpdateExpense = async (expense: Partial<Expense>) => {
     if (editingExpense) {
-      updateExpense(editingExpense.id, expense);
-      setEditingExpense(null);
-      setIsDialogOpen(false);
+      try {
+        await updateExpense(editingExpense.id, expense);
+        setEditingExpense(null);
+        setIsDialogOpen(false);
+      } catch (error) {
+        alert('Failed to update expense');
+        console.error(error);
+      }
     }
   };
 
   const handleDeleteExpense = (id: string) => {
     if (confirm('Are you sure you want to delete this expense?')) {
-      deleteExpense(id);
+      deleteExpense(id).catch(error => {
+        alert('Failed to delete expense');
+        console.error(error);
+      });
     }
   };
 

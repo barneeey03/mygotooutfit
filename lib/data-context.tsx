@@ -1,6 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/lib/auth-context';
 
 export interface Product {
   id: string;
@@ -58,159 +70,197 @@ interface DataContextType {
   orders: Order[];
   invoices: Invoice[];
   expenses: Expense[];
-  addProduct: (product: Product) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  addOrder: (order: Order) => void;
-  updateOrder: (id: string, order: Partial<Order>) => void;
-  deleteOrder: (id: string) => void;
-  addInvoice: (invoice: Invoice) => void;
-  updateInvoice: (id: string, invoice: Partial<Invoice>) => void;
-  deleteInvoice: (id: string) => void;
-  addExpense: (expense: Expense) => void;
-  updateExpense: (id: string, expense: Partial<Expense>) => void;
-  deleteExpense: (id: string) => void;
+  isLoading: boolean;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addOrder: (order: Omit<Order, 'id'>) => Promise<void>;
+  updateOrder: (id: string, order: Partial<Order>) => Promise<void>;
+  deleteOrder: (id: string) => Promise<void>;
+  addInvoice: (invoice: Omit<Invoice, 'id'>) => Promise<void>;
+  updateInvoice: (id: string, invoice: Partial<Invoice>) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'inventory_data';
-
-const defaultProducts: Product[] = [
-  { id: '1', name: 'Summer Dress - Pink', category: 'Dresses', quantity: 25, unitPrice: 850, reorderLevel: 10, supplier: 'Bangkok Textiles' },
-  { id: '2', name: 'Casual Shirt - White', category: 'Tops', quantity: 40, unitPrice: 450, reorderLevel: 15, supplier: 'Metro Fashion' },
-  { id: '3', name: 'Skinny Jeans - Blue', category: 'Bottoms', quantity: 18, unitPrice: 650, reorderLevel: 8, supplier: 'Denim Co' },
-  { id: '4', name: 'Blazer - Black', category: 'Outerwear', quantity: 12, unitPrice: 1200, reorderLevel: 5, supplier: 'Elite Wear' },
-  { id: '5', name: 'Scarf - Floral', category: 'Accessories', quantity: 35, unitPrice: 200, reorderLevel: 20, supplier: 'Thai Crafts' },
-];
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(defaultProducts);
+  const { user } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load data from localStorage
+  // Listen to products
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        setProducts(data.products || defaultProducts);
-        setOrders(data.orders || []);
-        setInvoices(data.invoices || []);
-        setExpenses(data.expenses || []);
-      } catch {
-        // Use defaults on parse error
-      }
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
     }
-    setIsLoaded(true);
-  }, []);
 
-  // Save data to localStorage
-  const saveData = (newProducts: Product[], newOrders: Order[], newInvoices: Invoice[], newExpenses: Expense[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      products: newProducts,
-      orders: newOrders,
-      invoices: newInvoices,
-      expenses: newExpenses,
-    }));
+    const q = query(collection(db, 'products'), where('userId', '==', user.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const productsData: Product[] = [];
+      snapshot.forEach((doc) => {
+        productsData.push({
+          id: doc.id,
+          ...doc.data(),
+        } as Product);
+      });
+      setProducts(productsData);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  // Listen to orders
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const q = query(collection(db, 'orders'), where('userId', '==', user.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData: Order[] = [];
+      snapshot.forEach((doc) => {
+        ordersData.push({
+          id: doc.id,
+          ...doc.data(),
+        } as Order);
+      });
+      setOrders(ordersData);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  // Listen to invoices
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const q = query(collection(db, 'invoices'), where('userId', '==', user.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const invoicesData: Invoice[] = [];
+      snapshot.forEach((doc) => {
+        invoicesData.push({
+          id: doc.id,
+          ...doc.data(),
+        } as Invoice);
+      });
+      setInvoices(invoicesData);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  // Listen to expenses
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const q = query(collection(db, 'expenses'), where('userId', '==', user.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const expensesData: Expense[] = [];
+      snapshot.forEach((doc) => {
+        expensesData.push({
+          id: doc.id,
+          ...doc.data(),
+        } as Expense);
+      });
+      setExpenses(expensesData);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  const addProduct = async (product: Omit<Product, 'id'>) => {
+    if (!user?.id) throw new Error('User not authenticated');
+    await addDoc(collection(db, 'products'), {
+      ...product,
+      userId: user.id,
+    });
   };
 
-  const addProduct = (product: Product) => {
-    const newProducts = [...products, product];
-    setProducts(newProducts);
-    saveData(newProducts, orders, invoices, expenses);
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
+    await updateDoc(doc(db, 'products', id), updates);
   };
 
-  const updateProduct = (id: string, updates: Partial<Product>) => {
-    const newProducts = products.map(p => p.id === id ? { ...p, ...updates } : p);
-    setProducts(newProducts);
-    saveData(newProducts, orders, invoices, expenses);
+  const deleteProduct = async (id: string) => {
+    await deleteDoc(doc(db, 'products', id));
   };
 
-  const deleteProduct = (id: string) => {
-    const newProducts = products.filter(p => p.id !== id);
-    setProducts(newProducts);
-    saveData(newProducts, orders, invoices, expenses);
+  const addOrder = async (order: Omit<Order, 'id'>) => {
+    if (!user?.id) throw new Error('User not authenticated');
+    await addDoc(collection(db, 'orders'), {
+      ...order,
+      userId: user.id,
+    });
   };
 
-  const addOrder = (order: Order) => {
-    const newOrders = [...orders, order];
-    setOrders(newOrders);
-    saveData(products, newOrders, invoices, expenses);
+  const updateOrder = async (id: string, updates: Partial<Order>) => {
+    await updateDoc(doc(db, 'orders', id), updates);
   };
 
-  const updateOrder = (id: string, updates: Partial<Order>) => {
-    const newOrders = orders.map(o => o.id === id ? { ...o, ...updates } : o);
-    setOrders(newOrders);
-    saveData(products, newOrders, invoices, expenses);
+  const deleteOrder = async (id: string) => {
+    await deleteDoc(doc(db, 'orders', id));
   };
 
-  const deleteOrder = (id: string) => {
-    const newOrders = orders.filter(o => o.id !== id);
-    setOrders(newOrders);
-    saveData(products, newOrders, invoices, expenses);
+  const addInvoice = async (invoice: Omit<Invoice, 'id'>) => {
+    if (!user?.id) throw new Error('User not authenticated');
+    await addDoc(collection(db, 'invoices'), {
+      ...invoice,
+      userId: user.id,
+    });
   };
 
-  const addInvoice = (invoice: Invoice) => {
-    const newInvoices = [...invoices, invoice];
-    setInvoices(newInvoices);
-    saveData(products, orders, newInvoices, expenses);
+  const updateInvoice = async (id: string, updates: Partial<Invoice>) => {
+    await updateDoc(doc(db, 'invoices', id), updates);
   };
 
-  const updateInvoice = (id: string, updates: Partial<Invoice>) => {
-    const newInvoices = invoices.map(i => i.id === id ? { ...i, ...updates } : i);
-    setInvoices(newInvoices);
-    saveData(products, orders, newInvoices, expenses);
+  const deleteInvoice = async (id: string) => {
+    await deleteDoc(doc(db, 'invoices', id));
   };
 
-  const deleteInvoice = (id: string) => {
-    const newInvoices = invoices.filter(i => i.id !== id);
-    setInvoices(newInvoices);
-    saveData(products, orders, newInvoices, expenses);
+  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+    if (!user?.id) throw new Error('User not authenticated');
+    await addDoc(collection(db, 'expenses'), {
+      ...expense,
+      userId: user.id,
+    });
   };
 
-  const addExpense = (expense: Expense) => {
-    const newExpenses = [...expenses, expense];
-    setExpenses(newExpenses);
-    saveData(products, orders, invoices, newExpenses);
+  const updateExpense = async (id: string, updates: Partial<Expense>) => {
+    await updateDoc(doc(db, 'expenses', id), updates);
   };
 
-  const updateExpense = (id: string, updates: Partial<Expense>) => {
-    const newExpenses = expenses.map(e => e.id === id ? { ...e, ...updates } : e);
-    setExpenses(newExpenses);
-    saveData(products, orders, invoices, newExpenses);
+  const deleteExpense = async (id: string) => {
+    await deleteDoc(doc(db, 'expenses', id));
   };
-
-  const deleteExpense = (id: string) => {
-    const newExpenses = expenses.filter(e => e.id !== id);
-    setExpenses(newExpenses);
-    saveData(products, orders, invoices, newExpenses);
-  };
-
-  if (!isLoaded) return null;
 
   return (
-    <DataContext.Provider value={{
-      products,
-      orders,
-      invoices,
-      expenses,
-      addProduct,
-      updateProduct,
-      deleteProduct,
-      addOrder,
-      updateOrder,
-      deleteOrder,
-      addInvoice,
-      updateInvoice,
-      deleteInvoice,
-      addExpense,
-      updateExpense,
-      deleteExpense,
-    }}>
+    <DataContext.Provider
+      value={{
+        products,
+        orders,
+        invoices,
+        expenses,
+        isLoading,
+        addProduct,
+        updateProduct,
+        deleteProduct,
+        addOrder,
+        updateOrder,
+        deleteOrder,
+        addInvoice,
+        updateInvoice,
+        deleteInvoice,
+        addExpense,
+        updateExpense,
+        deleteExpense,
+      }}
+    >
       {children}
     </DataContext.Provider>
   );

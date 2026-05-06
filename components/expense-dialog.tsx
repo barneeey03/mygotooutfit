@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 interface ExpenseDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (expense: any) => void;
+  onSave: (expense: any) => Promise<void>;
   expense?: Expense | null;
   categories: string[];
 }
@@ -38,6 +38,7 @@ export default function ExpenseDialog({
     paymentMethod: '',
     receipt: '',
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (expense) {
@@ -61,13 +62,21 @@ export default function ExpenseDialog({
     }
   }, [expense, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.date || !formData.category || !formData.description || !formData.amount || !formData.paymentMethod) {
       alert('Please fill in all required fields');
       return;
     }
-    onSave(formData);
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+    } catch (error) {
+      alert('Failed to save expense');
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -86,6 +95,7 @@ export default function ExpenseDialog({
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -95,7 +105,8 @@ export default function ExpenseDialog({
               id="category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50"
+              disabled={isSaving}
             >
               <option value="">Select category</option>
               {categories.map(cat => (
@@ -112,6 +123,7 @@ export default function ExpenseDialog({
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="What was this expense for?"
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -124,6 +136,7 @@ export default function ExpenseDialog({
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -133,7 +146,8 @@ export default function ExpenseDialog({
               id="paymentMethod"
               value={formData.paymentMethod}
               onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50"
+              disabled={isSaving}
             >
               <option value="">Select payment method</option>
               {paymentMethods.map(method => (
@@ -150,14 +164,19 @@ export default function ExpenseDialog({
               onChange={(e) => setFormData({ ...formData, receipt: e.target.value })}
               placeholder="e.g., Receipt #, Invoice #"
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white">
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white" disabled={isSaving}>
+              {isSaving ? 'Saving...' : (expense ? 'Update' : 'Add')} Expense
+            </Button>
+          </DialogFooter>
+        </form>
               {expense ? 'Update' : 'Add'} Expense
             </Button>
           </DialogFooter>

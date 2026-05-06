@@ -14,26 +14,35 @@ export default function OrdersPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const handleAddOrder = (order: Omit<Order, 'id'>) => {
-    const newOrder: Order = {
-      ...order,
-      id: Date.now().toString(),
-    };
-    addOrder(newOrder);
-    setIsDialogOpen(false);
+  const handleAddOrder = async (order: Omit<Order, 'id'>) => {
+    try {
+      await addOrder(order);
+      setIsDialogOpen(false);
+    } catch (error) {
+      alert('Failed to create order');
+      console.error(error);
+    }
   };
 
-  const handleUpdateOrder = (updates: Partial<Order>) => {
+  const handleUpdateOrder = async (updates: Partial<Order>) => {
     if (selectedOrder) {
-      updateOrder(selectedOrder.id, updates);
-      setSelectedOrder(null);
-      setDetailDialogOpen(false);
+      try {
+        await updateOrder(selectedOrder.id, updates);
+        setSelectedOrder(null);
+        setDetailDialogOpen(false);
+      } catch (error) {
+        alert('Failed to update order');
+        console.error(error);
+      }
     }
   };
 
   const handleDeleteOrder = (id: string) => {
     if (confirm('Are you sure you want to delete this order?')) {
-      deleteOrder(id);
+      deleteOrder(id).catch(error => {
+        alert('Failed to delete order');
+        console.error(error);
+      });
     }
   };
 

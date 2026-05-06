@@ -20,26 +20,35 @@ export default function InventoryPage() {
     p.supplier.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddProduct = (product: Omit<Product, 'id'>) => {
-    const newProduct: Product = {
-      ...product,
-      id: Date.now().toString(),
-    };
-    addProduct(newProduct);
-    setIsDialogOpen(false);
+  const handleAddProduct = async (product: Omit<Product, 'id'>) => {
+    try {
+      await addProduct(product);
+      setIsDialogOpen(false);
+    } catch (error) {
+      alert('Failed to add product');
+      console.error(error);
+    }
   };
 
-  const handleUpdateProduct = (product: Partial<Product>) => {
+  const handleUpdateProduct = async (product: Partial<Product>) => {
     if (editingProduct) {
-      updateProduct(editingProduct.id, product);
-      setEditingProduct(null);
-      setIsDialogOpen(false);
+      try {
+        await updateProduct(editingProduct.id, product);
+        setEditingProduct(null);
+        setIsDialogOpen(false);
+      } catch (error) {
+        alert('Failed to update product');
+        console.error(error);
+      }
     }
   };
 
   const handleDeleteProduct = (id: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      deleteProduct(id);
+      deleteProduct(id).catch(error => {
+        alert('Failed to delete product');
+        console.error(error);
+      });
     }
   };
 

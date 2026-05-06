@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 interface InvoiceDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (invoice: Omit<Invoice, 'id'>) => void;
+  onSave: (invoice: Omit<Invoice, 'id'>) => Promise<void>;
   orders: Order[];
 }
 
@@ -30,6 +30,7 @@ export default function InvoiceDialog({
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [taxRate, setTaxRate] = useState(7);
+  const [isSaving, setIsSaving] = useState(false);
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId);
 
@@ -41,7 +42,7 @@ export default function InvoiceDialog({
     return { subtotal, tax, total };
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder || !customerName || !customerEmail) {
       alert('Please fill in all required fields');
@@ -52,22 +53,30 @@ export default function InvoiceDialog({
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
 
-    onSave({
-      orderId: selectedOrder.id,
-      date: new Date().toISOString().split('T')[0],
-      dueDate: dueDate.toISOString().split('T')[0],
-      items: selectedOrder.items,
-      subtotal,
-      tax,
-      total,
-      status: 'draft',
-      customerName,
-      customerEmail,
-    });
+    setIsSaving(true);
+    try {
+      await onSave({
+        orderId: selectedOrder.id,
+        date: new Date().toISOString().split('T')[0],
+        dueDate: dueDate.toISOString().split('T')[0],
+        items: selectedOrder.items,
+        subtotal,
+        tax,
+        total,
+        status: 'draft',
+        customerName,
+        customerEmail,
+      });
 
-    setSelectedOrderId('');
-    setCustomerName('');
-    setCustomerEmail('');
+      setSelectedOrderId('');
+      setCustomerName('');
+      setCustomerEmail('');
+    } catch (error) {
+      alert('Failed to create invoice');
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const { subtotal, tax, total } = calculateTotals();
@@ -87,7 +96,8 @@ export default function InvoiceDialog({
               id="order"
               value={selectedOrderId}
               onChange={(e) => setSelectedOrderId(e.target.value)}
-              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50"
+              disabled={isSaving}
             >
               <option value="">Choose an order</option>
               {orders.map(order => (
@@ -107,6 +117,7 @@ export default function InvoiceDialog({
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Customer name"
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -119,6 +130,7 @@ export default function InvoiceDialog({
               onChange={(e) => setCustomerEmail(e.target.value)}
               placeholder="customer@example.com"
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -132,6 +144,7 @@ export default function InvoiceDialog({
               value={taxRate}
               onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -154,11 +167,11 @@ export default function InvoiceDialog({
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white">
-              Create Invoice
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white" disabled={isSaving}>
+              {isSaving ? 'Creating...' : 'Create Invoice'}
             </Button>
           </DialogFooter>
         </form>

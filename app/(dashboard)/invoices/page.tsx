@@ -22,26 +22,35 @@ export default function InvoicesPage() {
     inv.status.includes(searchTerm)
   );
 
-  const handleAddInvoice = (invoice: Omit<Invoice, 'id'>) => {
-    const newInvoice: Invoice = {
-      ...invoice,
-      id: Date.now().toString(),
-    };
-    addInvoice(newInvoice);
-    setIsDialogOpen(false);
+  const handleAddInvoice = async (invoice: Omit<Invoice, 'id'>) => {
+    try {
+      await addInvoice(invoice);
+      setIsDialogOpen(false);
+    } catch (error) {
+      alert('Failed to create invoice');
+      console.error(error);
+    }
   };
 
-  const handleUpdateInvoice = (updates: Partial<Invoice>) => {
+  const handleUpdateInvoice = async (updates: Partial<Invoice>) => {
     if (selectedInvoice) {
-      updateInvoice(selectedInvoice.id, updates);
-      setSelectedInvoice(null);
-      setDetailDialogOpen(false);
+      try {
+        await updateInvoice(selectedInvoice.id, updates);
+        setSelectedInvoice(null);
+        setDetailDialogOpen(false);
+      } catch (error) {
+        alert('Failed to update invoice');
+        console.error(error);
+      }
     }
   };
 
   const handleDeleteInvoice = (id: string) => {
     if (confirm('Are you sure you want to delete this invoice?')) {
-      deleteInvoice(id);
+      deleteInvoice(id).catch(error => {
+        alert('Failed to delete invoice');
+        console.error(error);
+      });
     }
   };
 

@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 interface InventoryDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (product: any) => void;
+  onSave: (product: any) => Promise<void>;
   product?: Product | null;
 }
 
@@ -36,6 +36,7 @@ export default function InventoryDialog({
     reorderLevel: 0,
     supplier: '',
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -59,13 +60,22 @@ export default function InventoryDialog({
     }
   }, [product, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.category || !formData.supplier) {
       alert('Please fill in all required fields');
       return;
     }
-    onSave(formData);
+    
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+    } catch (error) {
+      alert('Failed to save product');
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -84,6 +94,7 @@ export default function InventoryDialog({
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Summer Dress - Pink"
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -93,7 +104,8 @@ export default function InventoryDialog({
               id="category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50"
+              disabled={isSaving}
             >
               <option value="">Select category</option>
               {categories.map(cat => (
@@ -110,6 +122,7 @@ export default function InventoryDialog({
               onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
               placeholder="e.g., Bangkok Textiles"
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
 
@@ -122,6 +135,7 @@ export default function InventoryDialog({
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
                 className="border-primary/20"
+                disabled={isSaving}
               />
             </div>
             <div className="space-y-2">
@@ -133,6 +147,7 @@ export default function InventoryDialog({
                 value={formData.unitPrice}
                 onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
                 className="border-primary/20"
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -146,8 +161,23 @@ export default function InventoryDialog({
               onChange={(e) => setFormData({ ...formData, reorderLevel: parseInt(e.target.value) || 0 })}
               placeholder="Alert when stock falls below this"
               className="border-primary/20"
+              disabled={isSaving}
             />
           </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white" disabled={isSaving}>
+              {isSaving ? 'Saving...' : (product ? 'Update' : 'Add')} Product
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
