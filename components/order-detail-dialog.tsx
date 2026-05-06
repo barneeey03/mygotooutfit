@@ -49,6 +49,10 @@ export default function OrderDetailDialog({
               <p className="font-medium">{order.customerName}</p>
             </div>
             <div>
+              <Label className="text-xs text-muted-foreground">Customer Email</Label>
+              <p className="font-medium">{order.customerEmail || 'Not provided'}</p>
+            </div>
+            <div>
               <Label className="text-xs text-muted-foreground">Status</Label>
               <div className="flex gap-2 mt-1">
                 {(['pending', 'completed', 'cancelled'] as const).map(status => (

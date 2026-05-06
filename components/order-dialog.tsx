@@ -29,8 +29,18 @@ export default function OrderDialog({
 }: OrderDialogProps) {
   const [items, setItems] = useState<Omit<OrderItem, 'subtotal'>[]>([]);
   const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setItems([]);
+      setCustomerName('');
+      setCustomerEmail('');
+      setNotes('');
+    }
+  }, [isOpen]);
 
   const addItem = () => {
     setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0 }]);
@@ -83,6 +93,7 @@ export default function OrderDialog({
       await onSave({
         date: new Date().toISOString().split('T')[0],
         customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
         items: orderItems,
         total: calculateTotal(),
         status: 'pending' as const,
@@ -90,6 +101,7 @@ export default function OrderDialog({
       });
       setItems([]);
       setCustomerName('');
+      setCustomerEmail('');
       setNotes('');
     } catch (error) {
       alert('Failed to create order');
@@ -115,6 +127,20 @@ export default function OrderDialog({
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Enter customer name"
+              className="border-primary/20"
+              disabled={isSaving}
+            />
+          </div>
+
+          {/* Customer Email */}
+          <div className="space-y-2">
+            <Label htmlFor="customerEmail">Customer Email</Label>
+            <Input
+              id="customerEmail"
+              type="email"
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+              placeholder="customer@example.com"
               className="border-primary/20"
               disabled={isSaving}
             />

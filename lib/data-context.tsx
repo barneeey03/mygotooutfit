@@ -29,6 +29,7 @@ export interface Order {
   id: string;
   date: string;
   customerName: string;
+  customerEmail?: string;
   items: OrderItem[];
   total: number;
   status: 'pending' | 'completed' | 'cancelled';
@@ -243,7 +244,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           total: Math.round(order.total * 1.07),
           status: 'draft',
           customerName: order.customerName,
-          customerEmail: '', // Could be added later
+          customerEmail: order.customerEmail || '',
         });
       } else if (updates.status === 'cancelled' && order.status !== 'cancelled') {
         // Order is being cancelled - restore stock

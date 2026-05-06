@@ -53,6 +53,7 @@ export default function OrdersPage() {
   const filteredOrders = orders.filter(order =>
     order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.items.some(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
