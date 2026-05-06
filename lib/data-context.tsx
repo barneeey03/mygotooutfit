@@ -102,7 +102,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const q = query(collection(db, 'products'), where('userId', '==', user.id));
+    const q = query(collection(db, 'products'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const productsData: Product[] = [];
       snapshot.forEach((doc) => {
@@ -113,6 +113,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
       setProducts(productsData);
       setIsLoading(false);
+    }, (error) => {
+      console.error('Error fetching products:', error);
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -122,7 +125,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
 
-    const q = query(collection(db, 'orders'), where('userId', '==', user.id));
+    const q = query(collection(db, 'orders'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData: Order[] = [];
       snapshot.forEach((doc) => {
@@ -132,6 +135,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } as Order);
       });
       setOrders(ordersData);
+    }, (error) => {
+      console.error('Error fetching orders:', error);
     });
 
     return () => unsubscribe();
@@ -141,7 +146,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
 
-    const q = query(collection(db, 'invoices'), where('userId', '==', user.id));
+    const q = query(collection(db, 'invoices'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const invoicesData: Invoice[] = [];
       snapshot.forEach((doc) => {
@@ -151,6 +156,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } as Invoice);
       });
       setInvoices(invoicesData);
+    }, (error) => {
+      console.error('Error fetching invoices:', error);
     });
 
     return () => unsubscribe();
@@ -160,7 +167,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
 
-    const q = query(collection(db, 'expenses'), where('userId', '==', user.id));
+    const q = query(collection(db, 'expenses'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const expensesData: Expense[] = [];
       snapshot.forEach((doc) => {
@@ -170,17 +177,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } as Expense);
       });
       setExpenses(expensesData);
+    }, (error) => {
+      console.error('Error fetching expenses:', error);
     });
 
     return () => unsubscribe();
   }, [user?.id]);
 
   const addProduct = async (product: Omit<Product, 'id'>) => {
-    if (!user?.id) throw new Error('User not authenticated');
-    await addDoc(collection(db, 'products'), {
-      ...product,
-      userId: user.id,
-    });
+    await addDoc(collection(db, 'products'), product);
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
@@ -192,11 +197,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addOrder = async (order: Omit<Order, 'id'>) => {
-    if (!user?.id) throw new Error('User not authenticated');
-    await addDoc(collection(db, 'orders'), {
-      ...order,
-      userId: user.id,
-    });
+    await addDoc(collection(db, 'orders'), order);
   };
 
   const updateOrder = async (id: string, updates: Partial<Order>) => {
@@ -208,11 +209,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addInvoice = async (invoice: Omit<Invoice, 'id'>) => {
-    if (!user?.id) throw new Error('User not authenticated');
-    await addDoc(collection(db, 'invoices'), {
-      ...invoice,
-      userId: user.id,
-    });
+    await addDoc(collection(db, 'invoices'), invoice);
   };
 
   const updateInvoice = async (id: string, updates: Partial<Invoice>) => {
@@ -224,11 +221,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addExpense = async (expense: Omit<Expense, 'id'>) => {
-    if (!user?.id) throw new Error('User not authenticated');
-    await addDoc(collection(db, 'expenses'), {
-      ...expense,
-      userId: user.id,
-    });
+    await addDoc(collection(db, 'expenses'), expense);
   };
 
   const updateExpense = async (id: string, updates: Partial<Expense>) => {

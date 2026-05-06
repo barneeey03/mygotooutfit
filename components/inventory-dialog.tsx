@@ -178,17 +178,3 @@ export default function InventoryDialog({
     </Dialog>
   );
 }
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white">
-              {product ? 'Update' : 'Add'} Product
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}

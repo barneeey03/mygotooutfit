@@ -1,0 +1,13 @@
+// FIRESTORE SECURITY RULES
+// Go to Firebase Console > Firestore Database > Rules and replace the rules with this:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow all reads and writes for products, orders, invoices, expenses
+    // (In production, you should add proper authentication)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -177,10 +177,6 @@ export default function ExpenseDialog({
             </Button>
           </DialogFooter>
         </form>
-              {expense ? 'Update' : 'Add'} Expense
-            </Button>
-          </DialogFooter>
-        </form>
       </DialogContent>
     </Dialog>
   );
