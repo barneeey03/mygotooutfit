@@ -1,0 +1,289 @@
+'use client';
+
+import { useState } from 'react';
+import { useData, Expense } from '@/lib/data-context';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TrendingUp, Plus, Edit2, Trash2, Search, DollarSign } from 'lucide-react';
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import ExpenseDialog from '@/components/expense-dialog';
+
+const expenseCategories = ['Supplies', 'Transportation', 'Rent', 'Utilities', 'Staff', 'Marketing', 'Maintenance', 'Other'];
+
+export default function ExpensesPage() {
+  const { expenses, addExpense, updateExpense, deleteExpense } = useData();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  const filteredExpenses = expenses.filter(e =>
+    e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
+    const newExpense: Expense = {
+      ...expense,
+      id: Date.now().toString(),
+    };
+    addExpense(newExpense);
+    setIsDialogOpen(false);
+  };
+
+  const handleUpdateExpense = (expense: Partial<Expense>) => {
+    if (editingExpense) {
+      updateExpense(editingExpense.id, expense);
+      setEditingExpense(null);
+      setIsDialogOpen(false);
+    }
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    if (confirm('Are you sure you want to delete this expense?')) {
+      deleteExpense(id);
+    }
+  };
+
+  // Calculate metrics
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const monthlyExpenses = expenses.reduce((acc, e) => {
+    const month = new Date(e.date).toLocaleDateString('en-US', { month: 'short' });
+    const existing = acc.find(item => item.month === month);
+    if (existing) {
+      existing.amount += e.amount;
+    } else {
+      acc.push({ month, amount: e.amount });
+    }
+    return acc;
+  }, [] as Array<{ month: string; amount: number }>).slice(-6);
+
+  // Category breakdown
+  const categoryBreakdown = expenses.reduce((acc, e) => {
+    const existing = acc.find(item => item.name === e.category);
+    if (existing) {
+      existing.value += e.amount;
+    } else {
+      acc.push({ name: e.category, value: e.amount });
+    }
+    return acc;
+  }, [] as Array<{ name: string; value: number }>);
+
+  const colors = ['#f946d0', '#ec4899', '#db2777', '#be185d', '#9d174d', '#831843', '#500724', '#f5c2e8'];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Expenses Tracking</h1>
+          <p className="text-muted-foreground mt-2">Track and manage business expenses</p>
+        </div>
+        <Button
+          onClick={() => {
+            setEditingExpense(null);
+            setIsDialogOpen(true);
+          }}
+          className="bg-primary hover:bg-primary/90 text-white gap-2 w-fit"
+        >
+          <Plus className="w-4 h-4" />
+          Add Expense
+        </Button>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <DollarSign className="w-4 h-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {(totalExpenses / 1000).toFixed(1)}K
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {expenses.length} transactions
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg per Expense</CardTitle>
+            <TrendingUp className="w-4 h-4 text-accent" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {expenses.length > 0 ? (totalExpenses / expenses.length).toLocaleString() : 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Average amount
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <TrendingUp className="w-4 h-4 text-secondary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {monthlyExpenses.length > 0 ? (monthlyExpenses[monthlyExpenses.length - 1].amount / 1000).toFixed(1) : 0}K
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Current month
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Expenses by Category */}
+        {categoryBreakdown.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Expenses by Category</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoryBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => `${name}: ฿${(value / 1000).toFixed(1)}K`}
+                    outerRadius={80}
+                    fill="#f946d0"
+                    dataKey="value"
+                  >
+                    {colors.map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `฿${value.toLocaleString()}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Monthly Trend */}
+        {monthlyExpenses.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={monthlyExpenses}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => `฿${value.toLocaleString()}`} />
+                  <Legend />
+                  <Line type="monotone" dataKey="amount" stroke="#f946d0" strokeWidth={2} name="Expenses" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search expenses..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 border-primary/20"
+        />
+      </div>
+
+      {/* Expenses Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-destructive" />
+            Recent Expenses ({filteredExpenses.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredExpenses.length === 0 ? (
+            <div className="text-center py-8">
+              <TrendingUp className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">No expenses found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 font-semibold">Date</th>
+                    <th className="text-left py-3 px-4 font-semibold">Category</th>
+                    <th className="text-left py-3 px-4 font-semibold">Description</th>
+                    <th className="text-left py-3 px-4 font-semibold">Payment Method</th>
+                    <th className="text-right py-3 px-4 font-semibold">Amount</th>
+                    <th className="text-right py-3 px-4 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredExpenses.map((expense) => (
+                    <tr key={expense.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
+                      <td className="py-3 px-4">{new Date(expense.date).toLocaleDateString()}</td>
+                      <td className="py-3 px-4">
+                        <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                          {expense.category}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-medium">{expense.description}</td>
+                      <td className="py-3 px-4 text-muted-foreground text-xs">{expense.paymentMethod}</td>
+                      <td className="py-3 px-4 text-right font-semibold">฿{expense.amount.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingExpense(expense);
+                            setIsDialogOpen(true);
+                          }}
+                          className="text-primary hover:bg-primary/10"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteExpense(expense.id)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Dialog */}
+      <ExpenseDialog
+        isOpen={isDialogOpen}
+        onClose={() => {
+          setIsDialogOpen(false);
+          setEditingExpense(null);
+        }}
+        onSave={editingExpense ? handleUpdateExpense : handleAddExpense}
+        expense={editingExpense}
+        categories={expenseCategories}
+      />
+    </div>
+  );
+}
