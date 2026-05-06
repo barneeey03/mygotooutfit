@@ -28,6 +28,7 @@ export interface Product {
 export interface Order {
   id: string;
   date: string;
+  customerName: string;
   items: OrderItem[];
   total: number;
   status: 'pending' | 'completed' | 'cancelled';
@@ -200,10 +201,63 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addOrder = async (order: Omit<Order, 'id'>) => {
+    // Check stock availability before creating order
+    for (const item of order.items) {
+      const product = products.find(p => p.id === item.productId);
+      if (!product) {
+        throw new Error(`Product ${item.productName} not found`);
+      }
+      if (product.quantity < item.quantity) {
+        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`);
+      }
+    }
+
+    // Deduct stock immediately when order is created
+    const updates = order.items.map(item => {
+      const product = products.find(p => p.id === item.productId)!;
+      return updateProduct(item.productId, { quantity: product.quantity - item.quantity });
+    });
+    await Promise.all(updates);
+
     await addDoc(collection(db, 'orders'), order);
   };
 
   const updateOrder = async (id: string, updates: Partial<Order>) => {
+    const order = orders.find(o => o.id === id);
+    if (!order) return;
+
+    // Handle status changes
+    if (updates.status && updates.status !== order.status) {
+      if (updates.status === 'completed' && order.status !== 'completed') {
+        // Order is being completed - create invoice automatically
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+
+        await addInvoice({
+          orderId: order.id,
+          date: new Date().toISOString().split('T')[0],
+          dueDate: dueDate.toISOString().split('T')[0],
+          items: order.items,
+          subtotal: order.total,
+          tax: Math.round(order.total * 0.07), // 7% tax
+          total: Math.round(order.total * 1.07),
+          status: 'draft',
+          customerName: order.customerName,
+          customerEmail: '', // Could be added later
+        });
+      } else if (updates.status === 'cancelled' && order.status !== 'cancelled') {
+        // Order is being cancelled - restore stock
+        const stockUpdates = order.items.map(item => {
+          const product = products.find(p => p.id === item.productId);
+          if (product) {
+            return updateProduct(item.productId, { quantity: product.quantity + item.quantity });
+          }
+          return Promise.resolve();
+        });
+        await Promise.all(stockUpdates);
+      }
+    }
+
     await updateDoc(doc(db, 'orders', id), updates);
   };
 

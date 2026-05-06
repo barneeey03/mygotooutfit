@@ -142,7 +142,7 @@ export default function InventoryDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unitPrice">Unit Price (฿)</Label>
+              <Label htmlFor="unitPrice">Unit Price (₱)</Label>
               <Input
                 id="unitPrice"
                 type="number"
@@ -157,7 +157,7 @@ export default function InventoryDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sellingPrice">Selling Price (฿)</Label>
+              <Label htmlFor="sellingPrice">Selling Price (₱)</Label>
               <Input
                 id="sellingPrice"
                 type="number"

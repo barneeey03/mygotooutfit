@@ -120,15 +120,15 @@ export default function InvoicesPage() {
                 <tr>
                   <td>${item.productName}</td>
                   <td style="text-align: right;">${item.quantity}</td>
-                  <td style="text-align: right;">฿${item.unitPrice.toLocaleString()}</td>
-                  <td style="text-align: right;">฿${item.subtotal.toLocaleString()}</td>
+                  <td style="text-align: right;">₱${item.unitPrice.toLocaleString()}</td>
+                  <td style="text-align: right;">₱${item.subtotal.toLocaleString()}</td>
                 </tr>
               `).join('')}
             </table>
             <div style="text-align: right; padding-right: 50px;">
-              <p><strong>Subtotal:</strong> ฿${invoice.subtotal.toLocaleString()}</p>
-              <p><strong>Tax (${((invoice.tax / invoice.subtotal) * 100).toFixed(0)}%):</strong> ฿${invoice.tax.toLocaleString()}</p>
-              <p class="total">TOTAL: ฿${invoice.total.toLocaleString()}</p>
+              <p><strong>Subtotal:</strong> ₱${invoice.subtotal.toLocaleString()}</p>
+              <p><strong>Tax (${((invoice.tax / invoice.subtotal) * 100).toFixed(0)}%):</strong> ₱${invoice.tax.toLocaleString()}</p>
+              <p class="total">TOTAL: ₱${invoice.total.toLocaleString()}</p>
             </div>
             <div class="footer">
               <p>Thank you for your business!</p>
@@ -241,7 +241,7 @@ export default function InvoicesPage() {
                       <td className="py-3 px-4">{invoice.customerName}</td>
                       <td className="py-3 px-4 text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
                       <td className="py-3 px-4 text-muted-foreground">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-right font-semibold">฿{invoice.total.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right font-semibold">₱{invoice.total.toLocaleString()}</td>
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
                           {invoice.status}

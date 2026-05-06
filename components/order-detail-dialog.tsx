@@ -45,6 +45,10 @@ export default function OrderDetailDialog({
               <p className="font-medium">{new Date(order.date).toLocaleDateString()}</p>
             </div>
             <div>
+              <Label className="text-xs text-muted-foreground">Customer Name</Label>
+              <p className="font-medium">{order.customerName}</p>
+            </div>
+            <div>
               <Label className="text-xs text-muted-foreground">Status</Label>
               <div className="flex gap-2 mt-1">
                 {(['pending', 'completed', 'cancelled'] as const).map(status => (
@@ -80,8 +84,8 @@ export default function OrderDetailDialog({
                     <tr key={index} className="border-b border-border last:border-b-0">
                       <td className="p-3">{item.productName}</td>
                       <td className="text-right p-3">{item.quantity}</td>
-                      <td className="text-right p-3">฿{item.unitPrice.toLocaleString()}</td>
-                      <td className="text-right p-3 font-semibold">฿{item.subtotal.toLocaleString()}</td>
+                      <td className="text-right p-3">₱{item.unitPrice.toLocaleString()}</td>
+                      <td className="text-right p-3 font-semibold">₱{item.subtotal.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -101,7 +105,7 @@ export default function OrderDetailDialog({
           <div className="pt-4 border-t border-border">
             <div className="flex justify-between items-center">
               <span className="text-lg font-semibold">Order Total</span>
-              <span className="text-2xl font-bold text-primary">฿{order.total.toLocaleString()}</span>
+              <span className="text-2xl font-bold text-primary">₱{order.total.toLocaleString()}</span>
             </div>
           </div>
         </div>

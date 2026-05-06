@@ -96,8 +96,8 @@ export default function InvoiceDetailDialog({
                     <tr key={index} className="border-b border-border last:border-b-0">
                       <td className="p-3">{item.productName}</td>
                       <td className="text-right p-3">{item.quantity}</td>
-                      <td className="text-right p-3">฿{item.unitPrice.toLocaleString()}</td>
-                      <td className="text-right p-3 font-semibold">฿{item.subtotal.toLocaleString()}</td>
+                      <td className="text-right p-3">₱{item.unitPrice.toLocaleString()}</td>
+                      <td className="text-right p-3 font-semibold">₱{item.subtotal.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -109,15 +109,15 @@ export default function InvoiceDetailDialog({
           <div className="pt-4 border-t border-border space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal:</span>
-              <span className="font-medium">฿{invoice.subtotal.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax:</span>
-              <span className="font-medium">฿{invoice.tax.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
-              <span>Total:</span>
-              <span className="text-primary">฿{invoice.total.toLocaleString()}</span>
+                <span className="font-medium">₱{invoice.subtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tax:</span>
+                <span className="font-medium">₱{invoice.tax.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
+                <span>Total:</span>
+                <span className="text-primary">₱{invoice.total.toLocaleString()}</span>
             </div>
           </div>
         </div>

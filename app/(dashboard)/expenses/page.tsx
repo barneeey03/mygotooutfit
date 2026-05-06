@@ -128,7 +128,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ฿{(totalExpenses / 1000).toFixed(1)}K
+              ₱{(totalExpenses / 1000).toFixed(1)}K
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {expenses.length} transactions
@@ -143,7 +143,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {expenses.length > 0 ? `฿${(totalExpenses / expenses.length).toLocaleString()}` : '฿0'}
+              {expenses.length > 0 ? `₱${(totalExpenses / expenses.length).toLocaleString()}` : '₱0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Average amount

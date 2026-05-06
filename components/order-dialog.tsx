@@ -28,6 +28,7 @@ export default function OrderDialog({
   products,
 }: OrderDialogProps) {
   const [items, setItems] = useState<Omit<OrderItem, 'subtotal'>[]>([]);
+  const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -67,6 +68,10 @@ export default function OrderDialog({
       alert('Please add at least one item to the order');
       return;
     }
+    if (!customerName.trim()) {
+      alert('Please enter customer name');
+      return;
+    }
 
     const orderItems: OrderItem[] = items.map(item => ({
       ...item,
@@ -77,12 +82,14 @@ export default function OrderDialog({
     try {
       await onSave({
         date: new Date().toISOString().split('T')[0],
+        customerName: customerName.trim(),
         items: orderItems,
         total: calculateTotal(),
         status: 'pending' as const,
         notes,
       });
       setItems([]);
+      setCustomerName('');
       setNotes('');
     } catch (error) {
       alert('Failed to create order');
@@ -100,6 +107,19 @@ export default function OrderDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Customer Name */}
+          <div className="space-y-2">
+            <Label htmlFor="customerName">Customer Name *</Label>
+            <Input
+              id="customerName"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Enter customer name"
+              className="border-primary/20"
+              disabled={isSaving}
+            />
+          </div>
+
           {/* Order Items */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Order Items</Label>
@@ -145,7 +165,7 @@ export default function OrderDialog({
                   </div>
                   <div className="w-20 text-right">
                     <p className="text-sm font-semibold">
-                      ฿{(item.quantity * item.unitPrice).toLocaleString()}
+                      ₱{(item.quantity * item.unitPrice).toLocaleString()}
                     </p>
                   </div>
                   <Button
@@ -187,7 +207,7 @@ export default function OrderDialog({
           <div className="pt-4 border-t border-border">
             <div className="flex justify-between items-center">
               <span className="text-lg font-semibold">Order Total</span>
-              <span className="text-2xl font-bold text-primary">฿{calculateTotal().toLocaleString()}</span>
+              <span className="text-2xl font-bold text-primary">₱{calculateTotal().toLocaleString()}</span>
             </div>
           </div>
 

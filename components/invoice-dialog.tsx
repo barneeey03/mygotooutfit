@@ -102,7 +102,7 @@ export default function InvoiceDialog({
               <option value="">Choose an order</option>
               {orders.map(order => (
                 <option key={order.id} value={order.id}>
-                  Order #{order.id.slice(0, 8)} - ฿{order.total.toLocaleString()}
+                  Order #{order.id.slice(0, 8)} - ₱{order.total.toLocaleString()}
                 </option>
               ))}
             </select>
@@ -153,15 +153,15 @@ export default function InvoiceDialog({
             <div className="pt-4 space-y-2 border-t border-border">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal:</span>
-                <span className="font-medium">฿{subtotal.toLocaleString()}</span>
+                <span className="font-medium">₱{subtotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tax ({taxRate}%):</span>
-                <span className="font-medium">฿{tax.toLocaleString()}</span>
+                <span className="font-medium">₱{tax.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
                 <span>Total:</span>
-                <span className="text-primary">฿{total.toLocaleString()}</span>
+                <span className="text-primary">₱{total.toLocaleString()}</span>
               </div>
             </div>
           )}

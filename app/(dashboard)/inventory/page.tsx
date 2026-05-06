@@ -169,9 +169,9 @@ export default function InventoryPage() {
                         <td className="py-3 px-4 text-muted-foreground">{product.category}</td>
                         <td className="py-3 px-4 text-muted-foreground">{product.supplier}</td>
                         <td className="py-3 px-4 text-right font-medium">{product.quantity}</td>
-                        <td className="py-3 px-4 text-right">฿{product.unitPrice.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-right">฿{product.sellingPrice.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-right font-semibold">฿{stockValue.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right">₱{product.unitPrice.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right">₱{product.sellingPrice.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-semibold">₱{stockValue.toLocaleString()}</td>
                         <td className="py-3 px-4 text-center">
                           {isLowStock ? (
                             <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">

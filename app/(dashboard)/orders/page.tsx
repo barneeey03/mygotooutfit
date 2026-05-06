@@ -154,6 +154,7 @@ export default function OrdersPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/10">
                     <th className="text-left py-3 px-4 font-semibold">Order #</th>
+                    <th className="text-left py-3 px-4 font-semibold">Customer</th>
                     <th className="text-left py-3 px-4 font-semibold">Date</th>
                     <th className="text-left py-3 px-4 font-semibold">Items</th>
                     <th className="text-left py-3 px-4 font-semibold">Status</th>
@@ -166,6 +167,7 @@ export default function OrdersPage() {
                   {sortedOrders.map((order, index) => (
                     <tr key={order.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
                       <td className="py-3 px-4 text-xs text-muted-foreground font-medium">#{String(index + 1).padStart(3, '0')}</td>
+                      <td className="py-3 px-4 font-medium">{order.customerName}</td>
                       <td className="py-3 px-4 text-muted-foreground">{new Date(order.date).toLocaleDateString()}</td>
                       <td className="py-3 px-4 font-medium">{order.items.length}</td>
                       <td className="py-3 px-4">
@@ -173,7 +175,7 @@ export default function OrdersPage() {
                           {order.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-semibold">฿{order.total.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right font-semibold">₱{order.total.toLocaleString()}</td>
                       <td className="py-3 px-4 text-muted-foreground truncate max-w-[200px]">{order.notes || '-'}</td>
                       <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
                         <Button
