@@ -8,12 +8,15 @@ import { Input } from '@/components/ui/input';
 import { ShoppingCart, Plus, Eye, Trash2, Search } from 'lucide-react';
 import OrderDialog from '@/components/order-dialog';
 import OrderDetailDialog from '@/components/order-detail-dialog';
+import ConfirmationDialog from '@/components/confirmation-dialog';
 
 export default function OrdersPage() {
   const { orders, products, addOrder, updateOrder, deleteOrder } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const handleAddOrder = async (order: Omit<Order, 'id'>) => {
     try {
@@ -39,11 +42,19 @@ export default function OrdersPage() {
   };
 
   const handleDeleteOrder = (id: string) => {
-    if (confirm('Are you sure you want to delete this order?')) {
-      deleteOrder(id).catch(error => {
+    setOrderToDelete(id);
+    setConfirmDialogOpen(true);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (orderToDelete) {
+      try {
+        await deleteOrder(orderToDelete);
+      } catch (error) {
         alert('Failed to delete order');
         console.error(error);
-      });
+      }
+      setOrderToDelete(null);
     }
   };
 
@@ -233,6 +244,20 @@ export default function OrdersPage() {
           }}
         />
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+          setOrderToDelete(null);
+        }}
+        onConfirm={confirmDeleteOrder}
+        title="Delete Order"
+        description="Are you sure you want to delete this order? This action cannot be undone."
+        confirmText="Delete Order"
+        variant="destructive"
+      />
     </div>
   );
 }

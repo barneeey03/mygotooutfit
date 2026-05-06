@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Product, OrderItem } from '@/lib/data-context';
 import {
   Dialog,

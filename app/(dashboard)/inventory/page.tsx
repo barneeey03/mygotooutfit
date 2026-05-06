@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Package, Plus, Edit2, Trash2, Search } from 'lucide-react';
 import InventoryDialog from '@/components/inventory-dialog';
+import ConfirmationDialog from '@/components/confirmation-dialog';
 
 export default function InventoryPage() {
   const { products, addProduct, updateProduct, deleteProduct } = useData();
@@ -14,6 +15,8 @@ export default function InventoryPage() {
   const [sortOption, setSortOption] = useState('name-asc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -67,11 +70,19 @@ export default function InventoryPage() {
   };
 
   const handleDeleteProduct = (id: string) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      deleteProduct(id).catch(error => {
+    setProductToDelete(id);
+    setConfirmDialogOpen(true);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (productToDelete) {
+      try {
+        await deleteProduct(productToDelete);
+      } catch (error) {
         alert('Failed to delete product');
         console.error(error);
-      });
+      }
+      setProductToDelete(null);
     }
   };
 
@@ -223,6 +234,20 @@ export default function InventoryPage() {
         }}
         onSave={editingProduct ? handleUpdateProduct : handleAddProduct}
         product={editingProduct}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+          setProductToDelete(null);
+        }}
+        onConfirm={confirmDeleteProduct}
+        title="Delete Product"
+        description="Are you sure you want to delete this product? This action cannot be undone and may affect existing orders."
+        confirmText="Delete Product"
+        variant="destructive"
       />
     </div>
   );

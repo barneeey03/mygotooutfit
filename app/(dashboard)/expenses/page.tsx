@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { TrendingUp, Plus, Edit2, Trash2, Search, DollarSign } from 'lucide-react';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import ExpenseDialog from '@/components/expense-dialog';
+import ConfirmationDialog from '@/components/confirmation-dialog';
 
 const expenseCategories = ['Supplies', 'Transportation', 'Rent', 'Utilities', 'Staff', 'Marketing', 'Maintenance', 'Other'];
 
@@ -17,6 +18,8 @@ export default function ExpensesPage() {
   const [sortOption, setSortOption] = useState('date-desc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
   const filteredExpenses = expenses.filter(e =>
     e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -65,11 +68,19 @@ export default function ExpensesPage() {
   };
 
   const handleDeleteExpense = (id: string) => {
-    if (confirm('Are you sure you want to delete this expense?')) {
-      deleteExpense(id).catch(error => {
+    setExpenseToDelete(id);
+    setConfirmDialogOpen(true);
+  };
+
+  const confirmDeleteExpense = async () => {
+    if (expenseToDelete) {
+      try {
+        await deleteExpense(expenseToDelete);
+      } catch (error) {
         alert('Failed to delete expense');
         console.error(error);
-      });
+      }
+      setExpenseToDelete(null);
     }
   };
 
@@ -330,6 +341,20 @@ export default function ExpensesPage() {
         onSave={editingExpense ? handleUpdateExpense : handleAddExpense}
         expense={editingExpense}
         categories={expenseCategories}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+          setExpenseToDelete(null);
+        }}
+        onConfirm={confirmDeleteExpense}
+        title="Delete Expense"
+        description="Are you sure you want to delete this expense? This action cannot be undone."
+        confirmText="Delete Expense"
+        variant="destructive"
       />
     </div>
   );

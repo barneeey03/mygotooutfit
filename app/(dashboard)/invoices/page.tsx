@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { FileText, Plus, Download, Eye, Trash2, Search } from 'lucide-react';
 import InvoiceDialog from '@/components/invoice-dialog';
 import InvoiceDetailDialog from '@/components/invoice-detail-dialog';
+import ConfirmationDialog from '@/components/confirmation-dialog';
 
 export default function InvoicesPage() {
   const { invoices, orders, addInvoice, updateInvoice, deleteInvoice } = useData();
@@ -16,6 +17,8 @@ export default function InvoicesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
 
   const filteredInvoices = invoices.filter(inv =>
     inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,11 +67,19 @@ export default function InvoicesPage() {
   };
 
   const handleDeleteInvoice = (id: string) => {
-    if (confirm('Are you sure you want to delete this invoice?')) {
-      deleteInvoice(id).catch(error => {
+    setInvoiceToDelete(id);
+    setConfirmDialogOpen(true);
+  };
+
+  const confirmDeleteInvoice = async () => {
+    if (invoiceToDelete) {
+      try {
+        await deleteInvoice(invoiceToDelete);
+      } catch (error) {
         alert('Failed to delete invoice');
         console.error(error);
-      });
+      }
+      setInvoiceToDelete(null);
     }
   };
 
@@ -311,6 +322,20 @@ export default function InvoicesPage() {
           }}
         />
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+          setInvoiceToDelete(null);
+        }}
+        onConfirm={confirmDeleteInvoice}
+        title="Delete Invoice"
+        description="Are you sure you want to delete this invoice? This action cannot be undone."
+        confirmText="Delete Invoice"
+        variant="destructive"
+      />
     </div>
   );
 }
