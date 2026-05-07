@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TrendingUp, Plus, Edit2, Trash2, Search, DollarSign } from 'lucide-react';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import PageHeader from '@/components/page-header';
 import ExpenseDialog from '@/components/expense-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
 
@@ -113,22 +114,26 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Expenses Tracking</h1>
-          <p className="text-muted-foreground mt-2">Track and manage business expenses</p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditingExpense(null);
-            setIsDialogOpen(true);
-          }}
-          className="bg-primary hover:bg-primary/90 text-white gap-2 w-fit"
-        >
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </Button>
-      </div>
+      <PageHeader
+        title="Expenses Tracking"
+        description="Track and manage business expenses"
+        icon={<TrendingUp className="w-8 h-8" />}
+        action={
+          <Button
+            onClick={() => {
+              setEditingExpense(null);
+              setIsDialogOpen(true);
+            }}
+            className="text-white gap-2 w-fit transition-colors"
+            style={{ backgroundColor: '#e68bbe' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eea1cd'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e68bbe'}
+          >
+            <Plus className="w-4 h-4" />
+            Add Expense
+          </Button>
+        }
+      />
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -233,25 +238,29 @@ export default function ExpensesPage() {
       </div>
 
       {/* Search + Sort */}
-      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-center">
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
         <div className="relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+          <label htmlFor="search" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Search Expenses
+          </label>
+          <Search className="absolute left-3 top-10 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search expenses..."
+            id="search"
+            placeholder="Search by description or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-primary/20"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <label htmlFor="expense-sort" className="text-sm font-medium text-muted-foreground">
+        <div>
+          <label htmlFor="expense-sort" className="text-sm font-medium text-muted-foreground mb-2 block">
             Sort by
           </label>
           <select
             id="expense-sort"
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
-            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
           >
             <option value="date-desc">Date (Newest)</option>
             <option value="date-asc">Date (Oldest)</option>
@@ -262,68 +271,103 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* Expenses Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-destructive" />
-            Recent Expenses ({filteredExpenses.length})
+      {/* Expenses Table Card */}
+      <Card className="border-primary/10 shadow-sm">
+        <CardHeader className="border-b" style={{ backgroundColor: '#fde4f2', borderColor: '#f9cee7' }}>
+          <CardTitle className="flex items-center gap-2" style={{ color: '#e68bbe' }}>
+            <TrendingUp className="w-5 h-5" />
+            Recent Expenses
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {filteredExpenses.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <TrendingUp className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">No expenses found</p>
+              <p className="text-muted-foreground font-medium">No expenses found</p>
+              <p className="text-xs text-muted-foreground mt-1">Start tracking your expenses</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full min-w-full">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-semibold">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold">Category</th>
-                    <th className="text-left py-3 px-4 font-semibold">Description</th>
-                    <th className="text-left py-3 px-4 font-semibold">Payment Method</th>
-                    <th className="text-right py-3 px-4 font-semibold">Amount</th>
-                    <th className="text-right py-3 px-4 font-semibold">Actions</th>
+                  <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
+                    <th className="text-left py-4 px-6 font-semibold text-sm whitespace-nowrap">Date</th>
+                    <th className="text-left py-4 px-6 font-semibold text-sm whitespace-nowrap">Category</th>
+                    <th className="text-left py-4 px-6 font-semibold text-sm whitespace-nowrap">Description</th>
+                    <th className="text-left py-4 px-6 font-semibold text-sm whitespace-nowrap">Payment Method</th>
+                    <th className="text-right py-4 px-6 font-semibold text-sm whitespace-nowrap">Amount</th>
+                    <th className="text-center py-4 px-6 font-semibold text-sm whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedExpenses.map((expense) => (
-                    <tr key={expense.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 px-4">{new Date(expense.date).toLocaleDateString()}</td>
-                      <td className="py-3 px-4">
-                        <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {expense.category}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-medium">{expense.description}</td>
-                      <td className="py-3 px-4 text-muted-foreground text-xs">{expense.paymentMethod}</td>
-                      <td className="py-3 px-4 text-right font-semibold">฿{expense.amount.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingExpense(expense);
-                            setIsDialogOpen(true);
-                          }}
-                          className="text-primary hover:bg-primary/10"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteExpense(expense.id)}
-                          className="text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {sortedExpenses.map((expense, index) => {
+                    const isEvenRow = index % 2 === 0;
+                    
+                    return (
+                      <tr
+                        key={expense.id}
+                        className="border-b border-border transition-colors"
+                        style={{
+                          backgroundColor: isEvenRow ? 'white' : '#fde4f2',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9cee7'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isEvenRow ? 'white' : '#fde4f2'}
+                      >
+                        <td className="py-4 px-6 text-sm text-muted-foreground font-medium whitespace-nowrap">
+                          {new Date(expense.date).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </td>
+                        <td className="py-4 px-6 whitespace-nowrap">
+                          <span 
+                            className="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                            style={{ backgroundColor: '#f4b8da', color: '#e68bbe' }}
+                          >
+                            {expense.category}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 font-medium text-foreground whitespace-nowrap">
+                          {expense.description}
+                        </td>
+                        <td className="py-4 px-6 text-muted-foreground text-xs whitespace-nowrap">
+                          {expense.paymentMethod}
+                        </td>
+                        <td className="py-4 px-6 text-right font-semibold text-foreground whitespace-nowrap">
+                          ₱{expense.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-4 px-6 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingExpense(expense);
+                                setIsDialogOpen(true);
+                              }}
+                              className="h-8 w-8 p-0 transition-colors"
+                              style={{ color: '#e68bbe' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f4b8da'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteExpense(expense.id)}
+                              className="h-8 w-8 p-0 transition-colors text-red-600"
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

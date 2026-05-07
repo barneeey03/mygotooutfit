@@ -4,6 +4,7 @@ import { useData } from '@/lib/data-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Package, ShoppingCart, FileText, TrendingUp, AlertCircle, DollarSign } from 'lucide-react';
+import PageHeader from '@/components/page-header';
 
 export default function DashboardPage() {
   const { products, orders, invoices, expenses } = useData();
@@ -52,10 +53,11 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Overview of your inventory management system</p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your inventory management system"
+        icon={<TrendingUp className="w-8 h-8" />}
+      />
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

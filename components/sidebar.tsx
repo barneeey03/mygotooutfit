@@ -50,18 +50,19 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <div
-        className={`fixed md:relative top-0 left-0 h-screen w-64 bg-sidebar border-r border-sidebar-border transition-transform duration-300 z-40 ${
+        className={`fixed md:relative top-0 left-0 h-screen w-64 transition-transform duration-300 z-40 ${
           isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
+        style={{ backgroundColor: '#fde4f2', borderRight: '1px solid #f9cee7' }}
       >
         <div className="flex flex-col h-full p-4">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2 mb-8 mt-4 md:mt-0">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: '#e68bbe' }}>
               M
             </div>
             <div>
-              <h1 className="font-bold text-lg text-foreground">mygotooutfit</h1>
+              <h1 className="font-bold text-lg" style={{ color: '#e68bbe' }}>mygotooutfit</h1>
               <p className="text-xs text-muted-foreground">BKK Pasabuy</p>
             </div>
           </Link>
@@ -77,9 +78,22 @@ export function Sidebar() {
                     onClick={() => setIsOpen(false)}
                     className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent'
+                        ? 'text-white'
+                        : 'text-foreground'
                     }`}
+                    style={{
+                      backgroundColor: isActive ? '#e68bbe' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = '#f9cee7';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.label}</span>
@@ -90,16 +104,19 @@ export function Sidebar() {
           </nav>
 
           {/* User Info and Logout */}
-          <div className="border-t border-sidebar-border pt-4 space-y-3">
-            <div className="px-4 py-3 bg-sidebar-accent rounded-lg">
-              <p className="text-xs text-sidebar-accent-foreground">Logged in as</p>
-              <p className="font-medium text-sm text-sidebar-foreground truncate">{user?.name}</p>
+          <div className="border-t pt-4 space-y-3" style={{ borderColor: '#f9cee7' }}>
+            <div className="px-4 py-3 rounded-lg" style={{ backgroundColor: '#f9cee7' }}>
+              <p className="text-xs text-muted-foreground">Logged in as</p>
+              <p className="font-medium text-sm text-foreground truncate">{user?.name}</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
             <Button
               onClick={handleLogout}
               variant="outline"
-              className="w-full flex items-center justify-center gap-2"
+              className="w-full flex items-center justify-center gap-2 text-white transition-colors"
+              style={{ backgroundColor: '#e68bbe', borderColor: '#e68bbe' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eea1cd'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e68bbe'}
             >
               <LogOut className="w-4 h-4" />
               Logout

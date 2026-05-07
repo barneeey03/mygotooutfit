@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useData, Invoice } from '@/lib/data-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FileText, Plus, Download, Eye, Trash2, Search } from 'lucide-react';
+import PageHeader from '@/components/page-header';
 import InvoiceDialog from '@/components/invoice-dialog';
 import InvoiceDetailDialog from '@/components/invoice-detail-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
@@ -155,58 +155,66 @@ export default function InvoicesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
-        return 'bg-primary/10 text-primary';
+        return { bg: '#d1fae5', text: '#065f46' }; // light green
       case 'sent':
-        return 'bg-accent/10 text-accent';
+        return { bg: '#dbeafe', text: '#0c4a6e' }; // light blue
       case 'overdue':
-        return 'bg-destructive/10 text-destructive';
+        return { bg: '#fee2e2', text: '#991b1b' }; // light red
       case 'draft':
-        return 'bg-muted text-muted-foreground';
+        return { bg: '#f3f4f6', text: '#374151' }; // light gray
       default:
-        return 'bg-muted text-muted-foreground';
+        return { bg: '#f3f4f6', text: '#374151' };
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Invoices Management</h1>
-          <p className="text-muted-foreground mt-2">Create and manage invoices</p>
-        </div>
-        <Button
-          onClick={() => {
-            setSelectedInvoice(null);
-            setIsDialogOpen(true);
-          }}
-          className="bg-primary hover:bg-primary/90 text-white gap-2 w-fit"
-        >
-          <Plus className="w-4 h-4" />
-          New Invoice
-        </Button>
-      </div>
+      <PageHeader
+        title="Invoices Management"
+        description="Create, manage, and track invoices"
+        icon={<FileText className="w-8 h-8" />}
+        action={
+          <Button
+            onClick={() => {
+              setSelectedInvoice(null);
+              setIsDialogOpen(true);
+            }}
+            className="text-white gap-2 w-fit transition-colors"
+            style={{ backgroundColor: '#e68bbe' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eea1cd'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e68bbe'}
+          >
+            <Plus className="w-4 h-4" />
+            New Invoice
+          </Button>
+        }
+      />
 
       {/* Search + Sort */}
-      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-center">
+      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
         <div className="relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+          <label htmlFor="search" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Search Invoices
+          </label>
+          <Search className="absolute left-3 top-10 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search invoices..."
+            id="search"
+            placeholder="Search by invoice ID, customer, or status..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-primary/20"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <label htmlFor="invoice-sort" className="text-sm font-medium text-muted-foreground">
+        <div>
+          <label htmlFor="invoice-sort" className="text-sm font-medium text-muted-foreground mb-2 block">
             Sort by
           </label>
           <select
             id="invoice-sort"
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
-            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
           >
             <option value="date-desc">Date (Newest)</option>
             <option value="dueDate-asc">Due Date (Soonest)</option>
@@ -218,83 +226,108 @@ export default function InvoicesPage() {
       </div>
 
       {/* Invoices Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-secondary" />
-            Invoices ({filteredInvoices.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="overflow-x-auto w-full">
           {filteredInvoices.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">No invoices found</p>
+              <p className="text-muted-foreground font-medium">No invoices found</p>
+              <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters or create a new invoice</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <table className="w-full min-w-full border-collapse">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-semibold">Invoice #</th>
-                    <th className="text-left py-3 px-4 font-semibold">Customer</th>
-                    <th className="text-left py-3 px-4 font-semibold">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold">Due Date</th>
-                    <th className="text-right py-3 px-4 font-semibold">Amount</th>
-                    <th className="text-center py-3 px-4 font-semibold">Status</th>
-                    <th className="text-right py-3 px-4 font-semibold">Actions</th>
+                  <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Invoice #</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Customer</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Date</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Due Date</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Amount</th>
+                    <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Status</th>
+                    <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedInvoices.map((invoice, index) => (
-                    <tr key={invoice.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 px-4 font-medium text-primary">#{String(index + 1).padStart(3, '0')}</td>
-                      <td className="py-3 px-4">{invoice.customerName}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-right font-semibold">₱{invoice.total.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                          {invoice.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handlePrintInvoice(invoice)}
-                          className="text-secondary hover:bg-secondary/10"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedInvoice(invoice);
-                            setDetailDialogOpen(true);
-                          }}
-                          className="text-primary hover:bg-primary/10"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteInvoice(invoice.id)}
-                          className="text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {sortedInvoices.map((invoice, index) => {
+                    const isEvenRow = index % 2 === 0;
+                    const statusColors = getStatusColor(invoice.status);
+
+                    return (
+                      <tr
+                        key={invoice.id}
+                        className="transition-colors"
+                        style={{ backgroundColor: isEvenRow ? 'white' : '#fde4f2' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9cee7'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isEvenRow ? 'white' : '#fde4f2'}
+                      >
+                        <td className="py-1 px-2 text-xs font-semibold whitespace-nowrap border border-gray-200" style={{ color: '#e68bbe' }}>
+                          #{String(index + 1).padStart(3, '0')}
+                        </td>
+                        <td className="py-1 px-2 text-xs font-medium text-foreground whitespace-nowrap border border-gray-200">
+                          {invoice.customerName}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
+                          {new Date(invoice.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
+                          {new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-right font-semibold text-foreground whitespace-nowrap border border-gray-200">
+                          ₱{invoice.total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
+                          <span
+                            className="inline-block px-1.5 py-0.5 rounded text-xs font-medium capitalize"
+                            style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
+                          >
+                            {invoice.status}
+                          </span>
+                        </td>
+                        <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePrintInvoice(invoice)}
+                              className="h-6 w-6 p-0 transition-colors"
+                              style={{ color: '#e68bbe' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f4b8da'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedInvoice(invoice);
+                                setDetailDialogOpen(true);
+                              }}
+                              className="h-6 w-6 p-0 transition-colors"
+                              style={{ color: '#e68bbe' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f4b8da'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteInvoice(invoice.id)}
+                              className="h-6 w-6 p-0 transition-colors text-red-600"
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            </div>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Create Invoice Dialog */}
       <InvoiceDialog

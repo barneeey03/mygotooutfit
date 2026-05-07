@@ -20,7 +20,10 @@ interface InventoryDialogProps {
   product?: Product | null;
 }
 
-const categories = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes', 'Other'];
+// These should ideally come from your database, but for now we'll use static values
+// In a real app, you'd fetch these from Firestore
+const CATEGORIES = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes', 'Other'];
+const STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
 
 export default function InventoryDialog({
   isOpen,
@@ -107,11 +110,11 @@ export default function InventoryDialog({
               id="category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50"
+              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50 text-sm"
               disabled={isSaving}
             >
               <option value="">Select category</option>
-              {categories.map(cat => (
+              {CATEGORIES.map((cat: string) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -186,7 +189,7 @@ export default function InventoryDialog({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white" disabled={isSaving}>
+            <Button type="submit" className="text-white transition-colors" style={{ backgroundColor: '#e68bbe' }} disabled={isSaving} onMouseEnter={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#eea1cd')} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e68bbe'}>
               {isSaving ? 'Saving...' : (product ? 'Update' : 'Add')} Product
             </Button>
           </DialogFooter>

@@ -2,49 +2,44 @@
 
 import { useState } from 'react';
 import { useData, Product } from '@/lib/data-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Package, Plus, Edit2, Trash2, Search } from 'lucide-react';
+import PageHeader from '@/components/page-header';
 import InventoryDialog from '@/components/inventory-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
+
+const CATEGORIES = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes', 'Other'];
+const STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
 
 export default function InventoryPage() {
   const { products, addProduct, updateProduct, deleteProduct } = useData();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOption, setSortOption] = useState('name-asc');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getProductStatus = (product: Product) => {
+    if (product.quantity === 0) return 'Out of Stock';
+    if (product.quantity <= product.reorderLevel) return 'Low Stock';
+    return 'In Stock';
+  };
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortOption) {
-      case 'id-asc':
-        return a.id.localeCompare(b.id);
-      case 'name-asc':
-        return a.name.localeCompare(b.name);
-      case 'category-asc':
-        return a.category.localeCompare(b.category);
-      case 'quantity-desc':
-        return b.quantity - a.quantity;
-      case 'unitPrice-desc':
-        return b.unitPrice - a.unitPrice;
-      case 'sellingPrice-desc':
-        return b.sellingPrice - a.sellingPrice;
-      case 'stockValue-desc':
-        return (b.quantity * b.unitPrice) - (a.quantity * a.unitPrice);
-      default:
-        return a.name.localeCompare(b.name);
-    }
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = !filterCategory || p.category === filterCategory;
+    const matchesStatus = !filterStatus || getProductStatus(p) === filterStatus;
+    
+    return matchesSearch && matchesCategory && matchesStatus;
   });
+
 
   const handleAddProduct = async (product: Omit<Product, 'id'>) => {
     try {
@@ -89,141 +84,188 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Inventory Management</h1>
-          <p className="text-muted-foreground mt-2">Manage your product inventory</p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditingProduct(null);
-            setIsDialogOpen(true);
-          }}
-          className="bg-primary hover:bg-primary/90 text-white gap-2 w-fit"
-        >
-          <Plus className="w-4 h-4" />
-          Add Product
-        </Button>
-      </div>
+      <PageHeader
+        title="Inventory Management"
+        description="Manage your product inventory"
+        icon={<Package className="w-8 h-8" />}
+        action={
+          <Button
+            onClick={() => {
+              setEditingProduct(null);
+              setIsDialogOpen(true);
+            }}
+            className="text-white gap-2 w-fit transition-colors"
+            style={{ backgroundColor: '#e68bbe' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eea1cd'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e68bbe'}
+          >
+            <Plus className="w-4 h-4" />
+            Add Product
+          </Button>
+        }
+      />
 
-      {/* Search + Sort */}
-      <div className="grid gap-4 md:grid-cols-[1fr_auto] items-center">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+      {/* Search + Filter + Sort */}
+      <div className="grid gap-4 md:grid-cols-4 items-end">
+        <div className="md:col-span-2 relative">
+          <label htmlFor="search" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Search Products
+          </label>
+          <Search className="absolute left-3 top-10 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search products..."
+            id="search"
+            placeholder="Search by name, ID, category, supplier..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-primary/20"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <label htmlFor="inventory-sort" className="text-sm font-medium text-muted-foreground">
-            Sort by
+        <div>
+          <label htmlFor="category-filter" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Category
           </label>
           <select
-            id="inventory-sort"
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground"
+            id="category-filter"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
           >
-            <option value="name-asc">Product Name</option>
-            <option value="id-asc">Product ID</option>
-            <option value="category-asc">Category</option>
-            <option value="quantity-desc">Quantity (High to Low)</option>
-            <option value="unitPrice-desc">Unit Price (High to Low)</option>
-            <option value="sellingPrice-desc">Selling Price (High to Low)</option>
-            <option value="stockValue-desc">Stock Value (High to Low)</option>
+            <option value="">All Categories</option>
+            {CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="status-filter" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Status
+          </label>
+          <select
+            id="status-filter"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
+          >
+            <option value="">All Status</option>
+            {STATUSES.map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
           </select>
         </div>
       </div>
 
+      <div className="text-sm text-muted-foreground">
+        {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+      </div>
+
       {/* Inventory Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-primary" />
-            Products ({filteredProducts.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="overflow-x-auto w-full">
           {filteredProducts.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">No products found</p>
+              <p className="text-muted-foreground font-medium">No products found</p>
+              <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters or search terms</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <table className="w-full min-w-full border-collapse">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-semibold">Product ID</th>
-                    <th className="text-left py-3 px-4 font-semibold">Product Name</th>
-                    <th className="text-left py-3 px-4 font-semibold">Category</th>
-                    <th className="text-left py-3 px-4 font-semibold">Supplier</th>
-                    <th className="text-right py-3 px-4 font-semibold">Quantity</th>
-                    <th className="text-right py-3 px-4 font-semibold">Unit Price</th>
-                    <th className="text-right py-3 px-4 font-semibold">Selling Price</th>
-                    <th className="text-right py-3 px-4 font-semibold">Stock Value</th>
-                    <th className="text-center py-3 px-4 font-semibold">Status</th>
-                    <th className="text-right py-3 px-4 font-semibold">Actions</th>
+                  <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Product ID</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Product Name</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Category</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Supplier</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Quantity</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Unit Price</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Selling Price</th>
+                    <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Stock Value</th>
+                    <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Status</th>
+                    <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedProducts.map((product, index) => {
+                  {filteredProducts.map((product, index) => {
                     const stockValue = product.quantity * product.unitPrice;
-                    const isLowStock = product.quantity <= product.reorderLevel;
+                    const status = getProductStatus(product);
+                    const isEvenRow = index % 2 === 0;
+
                     return (
-                      <tr key={product.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
-                        <td className="py-3 px-4 text-xs text-muted-foreground font-medium">#{String(index + 1).padStart(3, '0')}</td>
-                        <td className="py-3 px-4 font-medium">{product.name}</td>
-                        <td className="py-3 px-4 text-muted-foreground">{product.category}</td>
-                        <td className="py-3 px-4 text-muted-foreground">{product.supplier}</td>
-                        <td className="py-3 px-4 text-right font-medium">{product.quantity}</td>
-                        <td className="py-3 px-4 text-right">₱{product.unitPrice.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-right">₱{product.sellingPrice.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-right font-semibold">₱{stockValue.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-center">
-                          {isLowStock ? (
-                            <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
-                              Low Stock
-                            </span>
-                          ) : (
-                            <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                              In Stock
-                            </span>
-                          )}
+                      <tr
+                        key={product.id}
+                        className="transition-colors"
+                        style={{ backgroundColor: isEvenRow ? 'white' : '#fde4f2' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9cee7'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isEvenRow ? 'white' : '#fde4f2'}
+                      >
+                        <td className="py-1 px-2 text-xs text-muted-foreground font-semibold whitespace-nowrap border border-gray-200">
+                          #{String(index + 1).padStart(3, '0')}
                         </td>
-                        <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingProduct(product);
-                              setIsDialogOpen(true);
+                        <td className="py-1 px-2 text-xs font-medium text-foreground whitespace-nowrap border border-gray-200">
+                          {product.name}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
+                          {product.category}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
+                          {product.supplier}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-right font-semibold text-foreground whitespace-nowrap border border-gray-200">
+                          {product.quantity}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-right text-foreground whitespace-nowrap border border-gray-200">
+                          ₱{product.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-right text-foreground whitespace-nowrap border border-gray-200">
+                          ₱{product.sellingPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-right font-semibold text-foreground whitespace-nowrap border border-gray-200">
+                          ₱{stockValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
+                          <span
+                            className="inline-block px-1.5 py-0.5 rounded text-xs font-medium"
+                            style={{
+                              backgroundColor: status === 'In Stock' ? '#d1fae5' : status === 'Low Stock' ? '#fef3c7' : '#fee2e2',
+                              color: status === 'In Stock' ? '#065f46' : status === 'Low Stock' ? '#92400e' : '#991b1b'
                             }}
-                            className="text-primary hover:bg-primary/10"
                           >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                            {status}
+                          </span>
+                        </td>
+                        <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingProduct(product);
+                                setIsDialogOpen(true);
+                              }}
+                              className="h-6 w-6 p-0 transition-colors"
+                              style={{ color: '#e68bbe' }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f4b8da'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="h-6 w-6 p-0 transition-colors text-red-600"
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            </div>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Add/Edit Dialog */}
       <InventoryDialog
