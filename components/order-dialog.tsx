@@ -21,13 +21,18 @@ interface OrderDialogProps {
   products: Product[];
 }
 
+type ItemState = Omit<OrderItem, 'subtotal'> & {
+  selectedBrand: string;
+  selectedCategory: string;
+};
+
 export default function OrderDialog({
   isOpen,
   onClose,
   onSave,
   products,
 }: OrderDialogProps) {
-  const [items, setItems] = useState<Omit<OrderItem, 'subtotal'>[]>([]);
+  const [items, setItems] = useState<ItemState[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [notes, setNotes] = useState('');
@@ -42,8 +47,17 @@ export default function OrderDialog({
     }
   }, [isOpen]);
 
+  const uniqueBrands = [...new Set(products.map(p => p.brandName))].sort();
+
   const addItem = () => {
-    setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0 }]);
+    setItems([...items, {
+      productId: '',
+      productName: '',
+      quantity: 1,
+      unitPrice: 0,
+      selectedBrand: '',
+      selectedCategory: '',
+    }]);
   };
 
   const removeItem = (index: number) => {
@@ -52,18 +66,48 @@ export default function OrderDialog({
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...items];
-    if (field === 'productId') {
+    const item = newItems[index];
+
+    if (field === 'selectedBrand') {
+      newItems[index] = {
+        ...item,
+        selectedBrand: value,
+        selectedCategory: '',
+        productId: '',
+        productName: '',
+        unitPrice: 0,
+      };
+    } else if (field === 'selectedCategory') {
+      newItems[index] = {
+        ...item,
+        selectedCategory: value,
+        productId: '',
+        productName: '',
+        unitPrice: 0,
+      };
+      const matches = products.filter(
+        p => p.brandName === item.selectedBrand && p.category === value
+      );
+      if (matches.length === 1) {
+        newItems[index] = {
+          ...newItems[index],
+          productId: matches[0].id,
+          productName: `${matches[0].brandName} - ${matches[0].category}`,
+          unitPrice: matches[0].sellingPrice,
+        };
+      }
+    } else if (field === 'productId') {
       const product = products.find(p => p.id === value);
       if (product) {
         newItems[index] = {
-          ...newItems[index],
+          ...item,
           productId: product.id,
-          productName: product.name,
-          unitPrice: product.unitPrice,
+          productName: `${product.brandName} - ${product.category}`,
+          unitPrice: product.sellingPrice,
         };
       }
     } else {
-      newItems[index] = { ...newItems[index], [field]: value };
+      newItems[index] = { ...item, [field]: value };
     }
     setItems(newItems);
   };
@@ -82,9 +126,16 @@ export default function OrderDialog({
       alert('Please enter customer name');
       return;
     }
+    if (items.some(item => !item.productId)) {
+      alert('Please select a product for all items');
+      return;
+    }
 
     const orderItems: OrderItem[] = items.map(item => ({
-      ...item,
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
       subtotal: item.quantity * item.unitPrice,
     }));
 
@@ -152,59 +203,135 @@ export default function OrderDialog({
             {items.length === 0 ? (
               <p className="text-sm text-muted-foreground">Add items to your order</p>
             ) : (
-              items.map((item, index) => (
-                <div key={index} className="flex gap-2 items-end">
-                  <div className="flex-1 space-y-2">
-                    <select
-                      value={item.productId}
-                      onChange={(e) => updateItem(index, 'productId', e.target.value)}
-                      className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
-                    >
-                      <option value="">Select product</option>
-                      {products.map(product => (
-                        <option key={product.id} value={product.id}>
-                          {product.name}
-                        </option>
-                      ))}
-                    </select>
+              items.map((item, index) => {
+                const brandCategories = [...new Set(
+                  products
+                    .filter(p => p.brandName === item.selectedBrand)
+                    .map(p => p.category)
+                )].sort();
+
+                const matchingProducts = products.filter(
+                  p => p.brandName === item.selectedBrand && p.category === item.selectedCategory
+                );
+
+                const selectedProduct = products.find(p => p.id === item.productId);
+
+                return (
+                  <div key={index} className="border border-primary/10 rounded-lg p-3 space-y-2 bg-muted/20">
+                    {/* Brand + Category row */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">Brand</p>
+                        <select
+                          value={item.selectedBrand}
+                          onChange={(e) => updateItem(index, 'selectedBrand', e.target.value)}
+                          className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
+                          disabled={isSaving}
+                        >
+                          <option value="">Select brand</option>
+                          {uniqueBrands.map(brand => (
+                            <option key={brand} value={brand}>{brand}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">Category</p>
+                        <select
+                          value={item.selectedCategory}
+                          onChange={(e) => updateItem(index, 'selectedCategory', e.target.value)}
+                          className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm disabled:opacity-50"
+                          disabled={!item.selectedBrand || isSaving}
+                        >
+                          <option value="">Select category</option>
+                          {brandCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Stock select — only when multiple products share the same brand+category */}
+                    {item.selectedBrand && item.selectedCategory && matchingProducts.length > 1 && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">Select Stock</p>
+                        <select
+                          value={item.productId}
+                          onChange={(e) => updateItem(index, 'productId', e.target.value)}
+                          className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
+                          disabled={isSaving}
+                        >
+                          <option value="">Select stock entry</option>
+                          {matchingProducts.map(p => (
+                            <option key={p.id} value={p.id}>
+                              Stock: {p.quantity} | ₱{p.sellingPrice.toLocaleString()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Stock availability badge */}
+                    {selectedProduct && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className={
+                          selectedProduct.quantity <= selectedProduct.reorderLevel
+                            ? 'text-destructive font-medium'
+                            : 'text-green-600 font-medium'
+                        }>
+                          Available stock: {selectedProduct.quantity}
+                        </span>
+                        {selectedProduct.quantity <= selectedProduct.reorderLevel && (
+                          <span className="text-destructive">(Low Stock)</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Qty + Price + Subtotal + Delete */}
+                    <div className="flex gap-2 items-end">
+                      <div className="w-24 space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">Qty</p>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                          placeholder="Qty"
+                          className="border-primary/20 text-sm"
+                          disabled={isSaving || !item.productId}
+                        />
+                      </div>
+                      <div className="w-28 space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">Unit Price</p>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.unitPrice}
+                          placeholder="Price"
+                          className="border-primary/20 text-sm"
+                          readOnly
+                          disabled
+                        />
+                      </div>
+                      <div className="flex-1 text-right space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">Subtotal</p>
+                        <p className="text-sm font-semibold">
+                          ₱{(item.quantity * item.unitPrice).toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeItem(index)}
+                        className="text-destructive hover:bg-destructive/10"
+                        disabled={isSaving}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="w-20">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                      placeholder="Qty"
-                      className="border-primary/20 text-sm"
-                    />
-                  </div>
-                  <div className="w-24">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      placeholder="Price"
-                      className="border-primary/20 text-sm"
-                      disabled
-                    />
-                  </div>
-                  <div className="w-20 text-right">
-                    <p className="text-sm font-semibold">
-                      ₱{(item.quantity * item.unitPrice).toLocaleString()}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                    className="text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))
+                );
+              })
             )}
             <Button
               type="button"

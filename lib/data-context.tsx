@@ -31,7 +31,7 @@ export interface Order {
   customerEmail?: string;
   items: OrderItem[];
   total: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'secured' | 'to-ship' | 'completed';
   notes: string;
 }
 
@@ -305,16 +305,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           customerName: order.customerName,
           customerEmail: order.customerEmail || '',
         });
-      } else if (updates.status === 'cancelled' && order.status !== 'cancelled') {
-        // Order is being cancelled - restore stock
-        const stockUpdates = order.items.map(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (product) {
-            return updateProduct(item.productId, { quantity: product.quantity + item.quantity });
-          }
-          return Promise.resolve();
-        });
-        await Promise.all(stockUpdates);
       }
     }
 
