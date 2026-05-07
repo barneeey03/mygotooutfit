@@ -31,7 +31,8 @@ export default function InventoryPage() {
   };
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.brandName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (p.productName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      p.brandName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.id.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -189,6 +190,7 @@ export default function InventoryPage() {
                 <thead>
                   <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
                     <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Product ID</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Product Name</th>
                     <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Brand Name</th>
                     <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Category</th>
                     <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Quantity</th>
@@ -215,6 +217,9 @@ export default function InventoryPage() {
                       >
                         <td className="py-1 px-2 text-xs text-muted-foreground font-semibold whitespace-nowrap border border-gray-200">
                           #{String(index + 1).padStart(3, '0')}
+                        </td>
+                        <td className="py-1 px-2 text-xs font-medium text-foreground whitespace-nowrap border border-gray-200">
+                          {product.productName || `${product.brandName} ${product.category}`}
                         </td>
                         <td className="py-1 px-2 text-xs font-medium text-foreground whitespace-nowrap border border-gray-200">
                           {product.brandName}

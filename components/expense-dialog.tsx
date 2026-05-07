@@ -18,7 +18,6 @@ interface ExpenseDialogProps {
   onClose: () => void;
   onSave: (expense: any) => Promise<void>;
   expense?: Expense | null;
-  inventoryOptions: string[];
   expenseTypes: string[];
 }
 
@@ -29,7 +28,6 @@ export default function ExpenseDialog({
   onClose,
   onSave,
   expense,
-  inventoryOptions,
   expenseTypes,
 }: ExpenseDialogProps) {
   const [formData, setFormData] = useState({
@@ -63,6 +61,10 @@ export default function ExpenseDialog({
       });
     }
   }, [expense, isOpen]);
+
+  const handleCategoryChange = (value: string) => {
+    setFormData({ ...formData, category: value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,25 +108,14 @@ export default function ExpenseDialog({
             <select
               id="category"
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50"
               disabled={isSaving}
             >
               <option value="">Select expense type</option>
-              {inventoryOptions.length > 0 && (
-                <optgroup label="Inventory Items">
-                  {inventoryOptions.map((option) => (
-                    <option key={`inventory-${option}`} value={option}>{option}</option>
-                  ))}
-                </optgroup>
-              )}
-              {expenseTypes.length > 0 && (
-                <optgroup label="Custom Expense Types">
-                  {expenseTypes.map((type) => (
-                    <option key={`expenseType-${type}`} value={type}>{type}</option>
-                  ))}
-                </optgroup>
-              )}
+              {expenseTypes.map((type) => (
+                <option key={`expenseType-${type}`} value={type}>{type}</option>
+              ))}
             </select>
           </div>
 

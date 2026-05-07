@@ -29,6 +29,7 @@ export default function InventoryDialog({
 }: InventoryDialogProps) {
   const { brands, categories, addBrand, addCategory } = useData();
   const [formData, setFormData] = useState({
+    productName: '',
     brandName: '',
     category: '',
     quantity: 0,
@@ -45,6 +46,7 @@ export default function InventoryDialog({
   useEffect(() => {
     if (product) {
       setFormData({
+        productName: product.productName || `${product.brandName} ${product.category}`,
         brandName: product.brandName,
         category: product.category,
         quantity: product.quantity,
@@ -54,6 +56,7 @@ export default function InventoryDialog({
       });
     } else {
       setFormData({
+        productName: '',
         brandName: '',
         category: '',
         quantity: 0,
@@ -99,7 +102,7 @@ export default function InventoryDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.brandName || !formData.category || formData.sellingPrice <= 0) {
+    if (!formData.productName || !formData.brandName || !formData.category || formData.sellingPrice <= 0) {
       alert('Please fill in all required fields');
       return;
     }
@@ -123,6 +126,20 @@ export default function InventoryDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Product Name */}
+          <div className="space-y-2">
+            <Label htmlFor="productName">Product Name *</Label>
+            <Input
+              id="productName"
+              value={formData.productName}
+              onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+              placeholder="Enter product name"
+              className="border-primary/20"
+              disabled={isSaving}
+              required
+            />
+          </div>
+
           {/* Brand Name */}
           <div className="space-y-2">
             <Label htmlFor="brandName">Brand Name *</Label>

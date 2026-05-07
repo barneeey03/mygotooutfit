@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth-context';
 
 export interface Product {
   id: string;
+  productName?: string;
   brandName: string;
   category: string;
   quantity: number;
@@ -95,6 +96,7 @@ interface DataContextType {
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  syncInventoryToExpenses: () => Promise<void>;
   addExpenseType: (expenseType: Omit<ExpenseType, 'id'>) => Promise<void>;
   deleteExpenseType: (id: string) => Promise<void>;
   addOrder: (order: Omit<Order, 'id'>) => Promise<void>;
@@ -280,7 +282,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   const addProduct = async (product: Omit<Product, 'id'>) => {
-    await addDoc(collection(db, 'products'), product);
+    const productRef = await addDoc(collection(db, 'products'), product);
+    
+    // Automatically add an expense for the inventory cost
+    const expenseData = {
+      date: new Date().toISOString().split('T')[0],
+      category: product.productName || `${product.brandName} ${product.category}`,
+      description: `Inventory purchase: ${product.productName || `${product.brandName} ${product.category}`}`,
+      amount: product.unitPrice,
+      paymentMethod: 'Cash',
+      receipt: '',
+      userId: user?.id,
+    };
+    await addDoc(collection(db, 'expenses'), expenseData);
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
@@ -289,6 +303,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteProduct = async (id: string) => {
     await deleteDoc(doc(db, 'products', id));
+  };
+
+  const syncInventoryToExpenses = async () => {
+    if (!user?.id) return;
+
+    const existingExpenseCategories = new Set(expenses.map(e => e.category));
+
+    for (const product of products) {
+      const productLabel = product.productName || `${product.brandName} ${product.category}`;
+      if (!existingExpenseCategories.has(productLabel)) {
+        const expenseData = {
+          date: new Date().toISOString().split('T')[0],
+          category: productLabel,
+          description: `Inventory purchase: ${productLabel}`,
+          amount: product.unitPrice,
+          paymentMethod: 'Cash',
+          receipt: '',
+          userId: user.id,
+        };
+        await addDoc(collection(db, 'expenses'), expenseData);
+      }
+    }
   };
 
   const addOrder = async (order: Omit<Order, 'id'>) => {
@@ -412,6 +448,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addProduct,
         updateProduct,
         deleteProduct,
+        syncInventoryToExpenses,
         addOrder,
         updateOrder,
         deleteOrder,

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useData, Expense } from '@/lib/data-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,32 +11,41 @@ import { TrendingUp, Plus, Edit2, Trash2, Search, DollarSign, Layers } from 'luc
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import PageHeader from '@/components/page-header';
 import ExpenseDialog from '@/components/expense-dialog';
-import ExpenseTypeDialog from '@/components/expense-type-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
 
 const defaultExpenseTypes = ['Flight Expenses', 'Transportation', 'Food Allowance', 'Medical Expenses', 'Training Expenses', 'Visa Processing', 'Documentation Fees', 'Hotel Accommodation', 'Others'];
 
 export default function ExpensesPage() {
-  const { products, expenses, expenseTypes, addExpense, updateExpense, deleteExpense, addExpenseType, deleteExpenseType } = useData();
+  const { products, expenses, expenseTypes, brands, addExpense, updateExpense, deleteExpense, syncInventoryToExpenses } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('date-desc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
-  const inventoryOptions = useMemo(() => {
-    const labels = products.map((product) => {
-      const categoryLabel = product.category ? ` / ${product.category}` : '';
-      return `${product.brandName}${categoryLabel}`.trim();
-    });
-    return Array.from(new Set(labels.filter(Boolean))).sort();
-  }, [products]);
-
   const customExpenseTypes = useMemo(() => {
-    return Array.from(new Set([...defaultExpenseTypes, ...expenseTypes.map((type) => type.name)])).sort();
-  }, [expenseTypes]);
+    return Array.from(new Set([
+      ...defaultExpenseTypes,
+      ...expenseTypes.map((type) => type.name),
+      ...brands.map((brand) => brand.name)
+    ])).sort();
+  }, [expenseTypes, brands]);
+
+  // Automatic sync of inventory to expenses
+  useEffect(() => {
+    const syncAutomatically = async () => {
+      if (products.length > 0 && expenses.length >= 0) {
+        try {
+          await syncInventoryToExpenses();
+        } catch (error) {
+          console.error('Automatic sync failed:', error);
+        }
+      }
+    };
+
+    syncAutomatically();
+  }, [products, expenses, syncInventoryToExpenses]);
 
   const filteredExpenses = expenses.filter(e =>
     e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,29 +90,6 @@ export default function ExpensesPage() {
         alert('Failed to update expense');
         console.error(error);
       }
-    }
-  };
-
-  const handleAddExpenseType = async (type: { name: string }) => {
-    try {
-      await addExpenseType(type);
-      setIsTypeDialogOpen(false);
-    } catch (error) {
-      alert('Failed to save expense type');
-      console.error(error);
-    }
-  };
-
-  const handleDeleteExpenseType = async (id: string) => {
-    if (!window.confirm('Delete this expense type?')) {
-      return;
-    }
-
-    try {
-      await deleteExpenseType(id);
-    } catch (error) {
-      alert('Failed to delete expense type');
-      console.error(error);
     }
   };
 
@@ -215,43 +201,11 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {monthlyExpenses.length > 0 ? `฿${(monthlyExpenses[monthlyExpenses.length - 1].amount / 1000).toFixed(1)}K` : '฿0'}
+              {monthlyExpenses.length > 0 ? `₱${(monthlyExpenses[monthlyExpenses.length - 1].amount / 1000).toFixed(1)}K` : '₱0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Current month
             </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Manage Expense Types */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle>Manage Expense Types</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {expenseTypes.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-primary/30 bg-muted p-4 text-sm text-muted-foreground">
-                  No custom expense types have been added yet. Use "Add Expense Type" to create one.
-                </div>
-              ) : (
-                expenseTypes.map((type) => (
-                  <div key={type.id} className="flex items-center justify-between gap-3 rounded-lg border border-primary/10 bg-background p-3">
-                    <span className="text-sm font-medium">{type.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteExpenseType(type.id)}
-                      className="h-8 w-8 p-0 text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -272,7 +226,7 @@ export default function ExpensesPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, value }) => `${name}: ฿${(value / 1000).toFixed(1)}K`}
+                    label={({ name, value }) => `${name}: ₱${(value / 1000).toFixed(1)}K`}
                     outerRadius={80}
                     fill="#f946d0"
                     dataKey="value"
@@ -281,7 +235,7 @@ export default function ExpensesPage() {
                       <Cell key={`cell-${index}`} fill={color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `฿${value.toLocaleString()}`} />
+                  <Tooltip formatter={(value) => `₱${value.toLocaleString()}`} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -300,7 +254,7 @@ export default function ExpensesPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value) => `฿${value.toLocaleString()}`} />
+                  <Tooltip formatter={(value) => `₱${value.toLocaleString()}`} />
                   <Legend />
                   <Line type="monotone" dataKey="amount" stroke="#f946d0" strokeWidth={2} name="Expenses" />
                 </LineChart>
@@ -457,14 +411,7 @@ export default function ExpensesPage() {
         }}
         onSave={editingExpense ? handleUpdateExpense : handleAddExpense}
         expense={editingExpense}
-        inventoryOptions={inventoryOptions}
         expenseTypes={customExpenseTypes}
-      />
-
-      <ExpenseTypeDialog
-        isOpen={isTypeDialogOpen}
-        onClose={() => setIsTypeDialogOpen(false)}
-        onSave={handleAddExpenseType}
       />
 
       {/* Confirmation Dialog */}
