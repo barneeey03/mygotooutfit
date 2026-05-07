@@ -16,13 +16,12 @@ import { useAuth } from '@/lib/auth-context';
 
 export interface Product {
   id: string;
-  name: string;
+  brandName: string;
   category: string;
   quantity: number;
   unitPrice: number;
   sellingPrice: number;
   reorderLevel: number;
-  supplier: string;
 }
 
 export interface Order {
@@ -68,11 +67,23 @@ export interface Expense {
   receipt: string;
 }
 
+export interface Brand {
+  id: string;
+  name: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+}
+
 interface DataContextType {
   products: Product[];
   orders: Order[];
   invoices: Invoice[];
   expenses: Expense[];
+  brands: Brand[];
+  categories: Category[];
   isLoading: boolean;
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
@@ -86,6 +97,10 @@ interface DataContextType {
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  addBrand: (brand: Omit<Brand, 'id'>) => Promise<void>;
+  deleteBrand: (id: string) => Promise<void>;
+  addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -96,6 +111,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Listen to products
@@ -189,6 +206,48 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [user?.id]);
 
+  // Listen to brands
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const q = query(collection(db, 'brands'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const brandsData: Brand[] = [];
+      snapshot.forEach((doc) => {
+        brandsData.push({
+          id: doc.id,
+          ...doc.data(),
+        } as Brand);
+      });
+      setBrands(brandsData);
+    }, (error) => {
+      console.error('Error fetching brands:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  // Listen to categories
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const q = query(collection(db, 'categories'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const categoriesData: Category[] = [];
+      snapshot.forEach((doc) => {
+        categoriesData.push({
+          id: doc.id,
+          ...doc.data(),
+        } as Category);
+      });
+      setCategories(categoriesData);
+    }, (error) => {
+      console.error('Error fetching categories:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
   const addProduct = async (product: Omit<Product, 'id'>) => {
     await addDoc(collection(db, 'products'), product);
   };
@@ -209,7 +268,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Product ${item.productName} not found`);
       }
       if (product.quantity < item.quantity) {
-        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`);
+        throw new Error(`Insufficient stock for ${item.productName}. Available: ${product.quantity}, Requested: ${item.quantity}`);
       }
     }
 
@@ -290,6 +349,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     await deleteDoc(doc(db, 'expenses', id));
   };
 
+  const addBrand = async (brand: Omit<Brand, 'id'>) => {
+    await addDoc(collection(db, 'brands'), brand);
+  };
+
+  const deleteBrand = async (id: string) => {
+    await deleteDoc(doc(db, 'brands', id));
+  };
+
+  const addCategory = async (category: Omit<Category, 'id'>) => {
+    await addDoc(collection(db, 'categories'), category);
+  };
+
+  const deleteCategory = async (id: string) => {
+    await deleteDoc(doc(db, 'categories', id));
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -297,6 +372,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         orders,
         invoices,
         expenses,
+        brands,
+        categories,
         isLoading,
         addProduct,
         updateProduct,
@@ -310,6 +387,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addExpense,
         updateExpense,
         deleteExpense,
+        addBrand,
+        deleteBrand,
+        addCategory,
+        deleteCategory,
       }}
     >
       {children}

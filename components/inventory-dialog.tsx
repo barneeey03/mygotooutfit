@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Product } from '@/lib/data-context';
+import { Product, useData } from '@/lib/data-context';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { X, Plus } from 'lucide-react';
 
 interface InventoryDialogProps {
   isOpen: boolean;
@@ -20,55 +21,106 @@ interface InventoryDialogProps {
   product?: Product | null;
 }
 
-// These should ideally come from your database, but for now we'll use static values
-// In a real app, you'd fetch these from Firestore
-const CATEGORIES = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes', 'Other'];
-const STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
-
 export default function InventoryDialog({
   isOpen,
   onClose,
   onSave,
   product,
 }: InventoryDialogProps) {
+  const { brands, categories, addBrand, addCategory, deleteBrand, deleteCategory } = useData();
   const [formData, setFormData] = useState({
-    name: '',
+    brandName: '',
     category: '',
     quantity: 0,
     unitPrice: 0,
     sellingPrice: 0,
     reorderLevel: 0,
-    supplier: '',
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [newBrand, setNewBrand] = useState('');
+  const [newCategory, setNewCategory] = useState('');
+  const [showBrandInput, setShowBrandInput] = useState(false);
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
 
   useEffect(() => {
     if (product) {
       setFormData({
-        name: product.name,
+        brandName: product.brandName,
         category: product.category,
         quantity: product.quantity,
         unitPrice: product.unitPrice,
         sellingPrice: product.sellingPrice,
         reorderLevel: product.reorderLevel,
-        supplier: product.supplier,
       });
     } else {
       setFormData({
-        name: '',
+        brandName: '',
         category: '',
         quantity: 0,
         unitPrice: 0,
         sellingPrice: 0,
         reorderLevel: 0,
-        supplier: '',
       });
     }
+    setNewBrand('');
+    setNewCategory('');
+    setShowBrandInput(false);
+    setShowCategoryInput(false);
   }, [product, isOpen]);
+
+  const handleAddBrand = async () => {
+    if (newBrand.trim()) {
+      try {
+        await addBrand({ name: newBrand.trim() });
+        setFormData({ ...formData, brandName: newBrand.trim() });
+        setNewBrand('');
+        setShowBrandInput(false);
+      } catch (error) {
+        alert('Failed to add brand');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (newCategory.trim()) {
+      try {
+        await addCategory({ name: newCategory.trim() });
+        setFormData({ ...formData, category: newCategory.trim() });
+        setNewCategory('');
+        setShowCategoryInput(false);
+      } catch (error) {
+        alert('Failed to add category');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDeleteBrand = async (brandId: string) => {
+    if (confirm('Delete this brand?')) {
+      try {
+        await deleteBrand(brandId);
+      } catch (error) {
+        alert('Failed to delete brand');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (confirm('Delete this category?')) {
+      try {
+        await deleteCategory(categoryId);
+      } catch (error) {
+        alert('Failed to delete category');
+        console.error(error);
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.category || !formData.supplier || formData.sellingPrice <= 0) {
+    if (!formData.brandName || !formData.category || formData.sellingPrice <= 0) {
       alert('Please fill in all required fields');
       return;
     }
@@ -86,50 +138,148 @@ export default function InventoryDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Brand Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">Product Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Summer Dress - Pink"
-              className="border-primary/20"
-              disabled={isSaving}
-            />
+            <Label htmlFor="brandName">Brand Name *</Label>
+            <div className="flex gap-2">
+              <select
+                value={formData.brandName}
+                onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
+                className="flex-1 px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50 text-sm"
+                disabled={isSaving}
+              >
+                <option value="">Select or add brand</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.name}>{brand.name}</option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setShowBrandInput(!showBrandInput)}
+                className="px-2"
+                style={{ backgroundColor: '#e68bbe' }}
+                disabled={isSaving}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            {showBrandInput && (
+              <div className="flex gap-2">
+                <Input
+                  value={newBrand}
+                  onChange={(e) => setNewBrand(e.target.value)}
+                  placeholder="New brand name"
+                  className="border-primary/20"
+                  disabled={isSaving}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAddBrand}
+                  disabled={!newBrand.trim() || isSaving}
+                  style={{ backgroundColor: '#e68bbe' }}
+                >
+                  Add
+                </Button>
+              </div>
+            )}
+            {/* Brand list with delete options */}
+            {brands.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {brands.map((brand) => (
+                  <div
+                    key={brand.id}
+                    className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs"
+                  >
+                    <span>{brand.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteBrand(brand.id)}
+                      className="hover:text-red-600"
+                      disabled={isSaving}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Category */}
           <div className="space-y-2">
             <Label htmlFor="category">Category *</Label>
-            <select
-              id="category"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50 text-sm"
-              disabled={isSaving}
-            >
-              <option value="">Select category</option>
-              {CATEGORIES.map((cat: string) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier *</Label>
-            <Input
-              id="supplier"
-              value={formData.supplier}
-              onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-              placeholder="e.g., Bangkok Textiles"
-              className="border-primary/20"
-              disabled={isSaving}
-            />
+            <div className="flex gap-2">
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="flex-1 px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50 text-sm"
+                disabled={isSaving}
+              >
+                <option value="">Select or add category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setShowCategoryInput(!showCategoryInput)}
+                className="px-2"
+                style={{ backgroundColor: '#e68bbe' }}
+                disabled={isSaving}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            {showCategoryInput && (
+              <div className="flex gap-2">
+                <Input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="New category name"
+                  className="border-primary/20"
+                  disabled={isSaving}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAddCategory}
+                  disabled={!newCategory.trim() || isSaving}
+                  style={{ backgroundColor: '#e68bbe' }}
+                >
+                  Add
+                </Button>
+              </div>
+            )}
+            {/* Category list with delete options */}
+            {categories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs"
+                  >
+                    <span>{cat.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="hover:text-red-600"
+                      disabled={isSaving}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -196,4 +346,5 @@ export default function InventoryDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )}
+  );
+}

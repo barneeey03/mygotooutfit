@@ -9,18 +9,20 @@ import PageHeader from '@/components/page-header';
 import InventoryDialog from '@/components/inventory-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
 
-const CATEGORIES = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes', 'Other'];
-const STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
-
 export default function InventoryPage() {
-  const { products, addProduct, updateProduct, deleteProduct } = useData();
+  const { products, categories, addProduct, updateProduct, deleteProduct } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterBrand, setFilterBrand] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+
+  const STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
+
+  const brandNames = [...new Set(products.map(p => p.brandName))].sort();
 
   const getProductStatus = (product: Product) => {
     if (product.quantity === 0) return 'Out of Stock';
@@ -29,15 +31,15 @@ export default function InventoryPage() {
   };
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = p.brandName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.id.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = !filterCategory || p.category === filterCategory;
     const matchesStatus = !filterStatus || getProductStatus(p) === filterStatus;
-    
-    return matchesSearch && matchesCategory && matchesStatus;
+    const matchesBrand = !filterBrand || p.brandName === filterBrand;
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesBrand;
   });
 
 
@@ -106,7 +108,7 @@ export default function InventoryPage() {
       />
 
       {/* Search + Filter + Sort */}
-      <div className="grid gap-4 md:grid-cols-4 items-end">
+      <div className="grid gap-4 md:grid-cols-5 items-end">
         <div className="md:col-span-2 relative">
           <label htmlFor="search" className="text-sm font-medium text-muted-foreground mb-2 block">
             Search Products
@@ -114,7 +116,7 @@ export default function InventoryPage() {
           <Search className="absolute left-3 top-10 w-4 h-4 text-muted-foreground" />
           <Input
             id="search"
-            placeholder="Search by name, ID, category, supplier..."
+            placeholder="Search by brand name, ID, or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-primary/20"
@@ -131,8 +133,8 @@ export default function InventoryPage() {
             className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
           >
             <option value="">All Categories</option>
-            {CATEGORIES.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.name}>{cat.name}</option>
             ))}
           </select>
         </div>
@@ -149,6 +151,22 @@ export default function InventoryPage() {
             <option value="">All Status</option>
             {STATUSES.map(status => (
               <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="brand-filter" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Brand
+          </label>
+          <select
+            id="brand-filter"
+            value={filterBrand}
+            onChange={(e) => setFilterBrand(e.target.value)}
+            className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
+          >
+            <option value="">All Brands</option>
+            {brandNames.map(brand => (
+              <option key={brand} value={brand}>{brand}</option>
             ))}
           </select>
         </div>
@@ -171,9 +189,8 @@ export default function InventoryPage() {
                 <thead>
                   <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
                     <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Product ID</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Product Name</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Brand Name</th>
                     <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Category</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Supplier</th>
                     <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Quantity</th>
                     <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Unit Price</th>
                     <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Selling Price</th>
@@ -200,13 +217,10 @@ export default function InventoryPage() {
                           #{String(index + 1).padStart(3, '0')}
                         </td>
                         <td className="py-1 px-2 text-xs font-medium text-foreground whitespace-nowrap border border-gray-200">
-                          {product.name}
+                          {product.brandName}
                         </td>
                         <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
                           {product.category}
-                        </td>
-                        <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
-                          {product.supplier}
                         </td>
                         <td className="py-1 px-2 text-xs text-right font-semibold text-foreground whitespace-nowrap border border-gray-200">
                           {product.quantity}
