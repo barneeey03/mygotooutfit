@@ -18,7 +18,8 @@ interface ExpenseDialogProps {
   onClose: () => void;
   onSave: (expense: any) => Promise<void>;
   expense?: Expense | null;
-  categories: string[];
+  inventoryOptions: string[];
+  expenseTypes: string[];
 }
 
 const paymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Cheque', 'Other'];
@@ -28,7 +29,8 @@ export default function ExpenseDialog({
   onClose,
   onSave,
   expense,
-  categories,
+  inventoryOptions,
+  expenseTypes,
 }: ExpenseDialogProps) {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -100,7 +102,7 @@ export default function ExpenseDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Category *</Label>
+            <Label htmlFor="category">Expense Type *</Label>
             <select
               id="category"
               value={formData.category}
@@ -108,10 +110,21 @@ export default function ExpenseDialog({
               className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground disabled:opacity-50"
               disabled={isSaving}
             >
-              <option value="">Select category</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
+              <option value="">Select expense type</option>
+              {inventoryOptions.length > 0 && (
+                <optgroup label="Inventory Items">
+                  {inventoryOptions.map((option) => (
+                    <option key={`inventory-${option}`} value={option}>{option}</option>
+                  ))}
+                </optgroup>
+              )}
+              {expenseTypes.length > 0 && (
+                <optgroup label="Custom Expense Types">
+                  {expenseTypes.map((type) => (
+                    <option key={`expenseType-${type}`} value={type}>{type}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 

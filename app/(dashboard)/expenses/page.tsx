@@ -1,26 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+'use client';
+
+import { useMemo, useState } from 'react';
 import { useData, Expense } from '@/lib/data-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { TrendingUp, Plus, Edit2, Trash2, Search, DollarSign } from 'lucide-react';
+import { TrendingUp, Plus, Edit2, Trash2, Search, DollarSign, Layers } from 'lucide-react';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import PageHeader from '@/components/page-header';
 import ExpenseDialog from '@/components/expense-dialog';
+import ExpenseTypeDialog from '@/components/expense-type-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
 
-const expenseCategories = ['Supplies', 'Transportation', 'Rent', 'Utilities', 'Staff', 'Marketing', 'Maintenance', 'Other'];
+const defaultExpenseTypes = ['Flight Expenses', 'Transportation', 'Food Allowance', 'Medical Expenses', 'Training Expenses', 'Visa Processing', 'Documentation Fees', 'Hotel Accommodation', 'Others'];
 
 export default function ExpensesPage() {
-  const { expenses, addExpense, updateExpense, deleteExpense } = useData();
+  const { products, expenses, expenseTypes, addExpense, updateExpense, deleteExpense, addExpenseType, deleteExpenseType } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('date-desc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+
+  const inventoryOptions = useMemo(() => {
+    const labels = products.map((product) => {
+      const categoryLabel = product.category ? ` / ${product.category}` : '';
+      return `${product.brandName}${categoryLabel}`.trim();
+    });
+    return Array.from(new Set(labels.filter(Boolean))).sort();
+  }, [products]);
+
+  const customExpenseTypes = useMemo(() => {
+    return Array.from(new Set([...defaultExpenseTypes, ...expenseTypes.map((type) => type.name)])).sort();
+  }, [expenseTypes]);
 
   const filteredExpenses = expenses.filter(e =>
     e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -68,6 +84,29 @@ export default function ExpensesPage() {
     }
   };
 
+  const handleAddExpenseType = async (type: { name: string }) => {
+    try {
+      await addExpenseType(type);
+      setIsTypeDialogOpen(false);
+    } catch (error) {
+      alert('Failed to save expense type');
+      console.error(error);
+    }
+  };
+
+  const handleDeleteExpenseType = async (id: string) => {
+    if (!window.confirm('Delete this expense type?')) {
+      return;
+    }
+
+    try {
+      await deleteExpenseType(id);
+    } catch (error) {
+      alert('Failed to delete expense type');
+      console.error(error);
+    }
+  };
+
   const handleDeleteExpense = (id: string) => {
     setExpenseToDelete(id);
     setConfirmDialogOpen(true);
@@ -88,15 +127,17 @@ export default function ExpensesPage() {
   // Calculate metrics
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const monthlyExpenses = expenses.reduce((acc, e) => {
-    const month = new Date(e.date).toLocaleDateString('en-US', { month: 'short' });
-    const existing = acc.find(item => item.month === month);
+    const date = new Date(e.date);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const monthLabel = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const existing = acc.find(item => item.key === key);
     if (existing) {
       existing.amount += e.amount;
     } else {
-      acc.push({ month, amount: e.amount });
+      acc.push({ key, month: monthLabel, amount: e.amount });
     }
     return acc;
-  }, [] as Array<{ month: string; amount: number }>).slice(-6);
+  }, [] as Array<{ key: string; month: string; amount: number }> ).sort((a, b) => a.key.localeCompare(b.key)).slice(-6);
 
   // Category breakdown
   const categoryBreakdown = expenses.reduce((acc, e) => {
@@ -179,6 +220,38 @@ export default function ExpensesPage() {
             <p className="text-xs text-muted-foreground mt-1">
               Current month
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Manage Expense Types */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle>Manage Expense Types</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {expenseTypes.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-primary/30 bg-muted p-4 text-sm text-muted-foreground">
+                  No custom expense types have been added yet. Use "Add Expense Type" to create one.
+                </div>
+              ) : (
+                expenseTypes.map((type) => (
+                  <div key={type.id} className="flex items-center justify-between gap-3 rounded-lg border border-primary/10 bg-background p-3">
+                    <span className="text-sm font-medium">{type.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteExpenseType(type.id)}
+                      className="h-8 w-8 p-0 text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -384,7 +457,14 @@ export default function ExpensesPage() {
         }}
         onSave={editingExpense ? handleUpdateExpense : handleAddExpense}
         expense={editingExpense}
-        categories={expenseCategories}
+        inventoryOptions={inventoryOptions}
+        expenseTypes={customExpenseTypes}
+      />
+
+      <ExpenseTypeDialog
+        isOpen={isTypeDialogOpen}
+        onClose={() => setIsTypeDialogOpen(false)}
+        onSave={handleAddExpenseType}
       />
 
       {/* Confirmation Dialog */}

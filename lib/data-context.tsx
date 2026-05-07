@@ -78,6 +78,11 @@ export interface Category {
   name: string;
 }
 
+export interface ExpenseType {
+  id: string;
+  name: string;
+}
+
 interface DataContextType {
   products: Product[];
   orders: Order[];
@@ -85,10 +90,13 @@ interface DataContextType {
   expenses: Expense[];
   brands: Brand[];
   categories: Category[];
+  expenseTypes: ExpenseType[];
   isLoading: boolean;
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  addExpenseType: (expenseType: Omit<ExpenseType, 'id'>) => Promise<void>;
+  deleteExpenseType: (id: string) => Promise<void>;
   addOrder: (order: Omit<Order, 'id'>) => Promise<void>;
   updateOrder: (id: string, order: Partial<Order>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
@@ -114,6 +122,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [expenseTypes, setExpenseTypes] = useState<ExpenseType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Listen to products
@@ -249,6 +258,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [user?.id]);
 
+  // Listen to expense types
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const q = query(collection(db, 'expenseTypes'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const expenseTypesData: ExpenseType[] = [];
+      snapshot.forEach((doc) => {
+        expenseTypesData.push({
+          id: doc.id,
+          ...doc.data(),
+        } as ExpenseType);
+      });
+      setExpenseTypes(expenseTypesData);
+    }, (error) => {
+      console.error('Error fetching expense types:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
   const addProduct = async (product: Omit<Product, 'id'>) => {
     await addDoc(collection(db, 'products'), product);
   };
@@ -344,6 +374,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     await deleteDoc(doc(db, 'expenses', id));
   };
 
+  const addExpenseType = async (expenseType: Omit<ExpenseType, 'id'>) => {
+    await addDoc(collection(db, 'expenseTypes'), expenseType);
+  };
+
+  const deleteExpenseType = async (id: string) => {
+    await deleteDoc(doc(db, 'expenseTypes', id));
+  };
+
   const addBrand = async (brand: Omit<Brand, 'id'>) => {
     await addDoc(collection(db, 'brands'), brand);
   };
@@ -369,6 +407,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         expenses,
         brands,
         categories,
+        expenseTypes,
         isLoading,
         addProduct,
         updateProduct,
@@ -382,6 +421,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addExpense,
         updateExpense,
         deleteExpense,
+        addExpenseType,
+        deleteExpenseType,
         addBrand,
         deleteBrand,
         addCategory,
