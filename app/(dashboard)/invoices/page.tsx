@@ -4,11 +4,16 @@ import { useState } from 'react';
 import { useData, Invoice } from '@/lib/data-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FileText, Plus, Download, Eye, Trash2, Search } from 'lucide-react';
+import { FileText, Plus, Download, Eye, Trash2, Search, Check } from 'lucide-react';
 import PageHeader from '@/components/page-header';
 import InvoiceDialog from '@/components/invoice-dialog';
 import InvoiceDetailDialog from '@/components/invoice-detail-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
+
+interface CustomerGroup {
+  customerName: string;
+  invoices: Invoice[];
+}
 
 export default function InvoicesPage() {
   const { invoices, orders, addInvoice, updateInvoice, deleteInvoice } = useData();
@@ -16,32 +21,44 @@ export default function InvoicesPage() {
   const [sortOption, setSortOption] = useState('date-desc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<CustomerGroup | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
+  const [groupToDelete, setGroupToDelete] = useState<CustomerGroup | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
 
-  const filteredInvoices = invoices.filter(inv =>
-    inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inv.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInvoices = invoices.filter(inv => {
+    const matchesSearch =
+      inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.status.toLowerCase().includes(searchTerm.toLowerCase());
+    const isInHistory = inv.status === 'done';
+    if (activeTab === 'active' && !isInHistory) return matchesSearch;
+    if (activeTab === 'history' && isInHistory) return matchesSearch;
+    return false;
+  });
 
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
     switch (sortOption) {
-      case 'id-asc':
-        return a.id.localeCompare(b.id);
-      case 'date-desc':
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      case 'dueDate-asc':
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      case 'amount-desc':
-        return b.total - a.total;
-      case 'status-asc':
-        return a.status.localeCompare(b.status);
-      default:
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'id-asc':        return a.id.localeCompare(b.id);
+      case 'date-desc':     return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'dueDate-asc':   return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      case 'amount-desc':   return b.total - a.total;
+      case 'status-asc':    return a.status.localeCompare(b.status);
+      default:              return new Date(b.date).getTime() - new Date(a.date).getTime();
     }
   });
+
+  const groupInvoicesByCustomer = (): CustomerGroup[] => {
+    const grouped = new Map<string, Invoice[]>();
+    sortedInvoices.forEach(invoice => {
+      if (!grouped.has(invoice.customerName)) grouped.set(invoice.customerName, []);
+      grouped.get(invoice.customerName)!.push(invoice);
+    });
+    return Array.from(grouped.entries()).map(([customerName, grpInvoices]) => ({
+      customerName,
+      invoices: grpInvoices,
+    }));
+  };
 
   const handleAddInvoice = async (invoice: Omit<Invoice, 'id'>) => {
     try {
@@ -53,11 +70,11 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleUpdateInvoice = async (updates: Partial<Invoice>) => {
-    if (selectedInvoice) {
+  const handleUpdateGroup = async (updates: Partial<Invoice>) => {
+    if (selectedGroup) {
       try {
-        await updateInvoice(selectedInvoice.id, updates);
-        setSelectedInvoice(null);
+        await Promise.all(selectedGroup.invoices.map(inv => updateInvoice(inv.id, updates)));
+        setSelectedGroup(null);
         setDetailDialogOpen(false);
       } catch (error) {
         alert('Failed to update invoice');
@@ -66,41 +83,58 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleDeleteInvoice = (id: string) => {
-    setInvoiceToDelete(id);
+  const handleMarkGroupAsDone = async (group: CustomerGroup) => {
+    try {
+      await Promise.all(group.invoices.map(inv => updateInvoice(inv.id, { status: 'done' })));
+    } catch (error) {
+      alert('Failed to mark invoice as done');
+      console.error(error);
+    }
+  };
+
+  const handleDeleteGroupPrompt = (group: CustomerGroup) => {
+    setGroupToDelete(group);
     setConfirmDialogOpen(true);
   };
 
-  const confirmDeleteInvoice = async () => {
-    if (invoiceToDelete) {
+  const confirmDeleteGroup = async () => {
+    if (groupToDelete) {
       try {
-        await deleteInvoice(invoiceToDelete);
+        await Promise.all(groupToDelete.invoices.map(inv => deleteInvoice(inv.id)));
       } catch (error) {
         alert('Failed to delete invoice');
         console.error(error);
       }
-      setInvoiceToDelete(null);
+      setGroupToDelete(null);
     }
   };
 
-  const handlePrintInvoice = (invoice: Invoice) => {
+  const handlePrintGroup = (group: CustomerGroup) => {
+    const uniqueInvoices = group.invoices.filter(
+      (inv, idx, arr) => arr.findIndex(i => i.orderId === inv.orderId) === idx
+    );
+    const allItems = uniqueInvoices.flatMap(inv => inv.items);
+    const grandTotal = uniqueInvoices.reduce((sum, inv) => sum + inv.subtotal, 0);
+    const primary = uniqueInvoices[0];
     const printWindow = window.open('', '', 'height=800,width=1000');
     if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Invoice ${invoice.id}</title>
+            <title>Invoice - ${group.customerName}</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 20px; }
-              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f946d0; padding-bottom: 20px; }
-              .header h1 { margin: 0; color: #f946d0; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e68bbe; padding-bottom: 20px; }
+              .header h1 { margin: 0; color: #e68bbe; }
               .info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
               .info div { font-size: 14px; }
               .info label { font-weight: bold; }
               table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-              th { background-color: #f5c2e8; padding: 10px; text-align: left; }
-              td { padding: 10px; border-bottom: 1px solid #ddd; }
-              .total { text-align: right; font-size: 18px; font-weight: bold; color: #f946d0; }
+              th { background-color: #fdf0f8; padding: 10px; text-align: left; font-size: 12px; text-transform: uppercase; }
+              td { padding: 10px; border-bottom: 1px solid #fce7f3; }
+              .total-box { text-align: right; padding: 16px; background: #fdf0f8; border-radius: 8px; }
+              .total-label { font-size: 12px; text-transform: uppercase; color: #666; }
+              .total-amount { font-size: 22px; font-weight: 900; color: #c9508a; margin-top: 4px; }
               .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
             </style>
           </head>
@@ -111,39 +145,35 @@ export default function InvoicesPage() {
             </div>
             <div class="info">
               <div>
-                <label>Invoice No.:</label> ${invoice.id}<br>
-                <label>Date:</label> ${new Date(invoice.date).toLocaleDateString()}<br>
-                <label>Due Date:</label> ${new Date(invoice.dueDate).toLocaleDateString()}
+                <label>Customer:</label> ${primary.customerName}<br>
+                <label>Email:</label> ${primary.customerEmail}
               </div>
               <div>
-                <label>Customer:</label> ${invoice.customerName}<br>
-                <label>Email:</label> ${invoice.customerEmail}
+                <label>Date:</label> ${new Date(primary.date).toLocaleDateString()}<br>
+                <label>Due Date:</label> ${new Date(primary.dueDate).toLocaleDateString()}
               </div>
             </div>
             <table>
               <tr>
-                <th>Description</th>
-                <th style="text-align: right;">Qty</th>
-                <th style="text-align: right;">Unit Price</th>
-                <th style="text-align: right;">Amount</th>
+                <th>Product</th>
+                <th style="text-align:center;">Qty</th>
+                <th style="text-align:right;">Unit Price</th>
+                <th style="text-align:right;">Amount</th>
               </tr>
-              ${invoice.items.map(item => `
+              ${allItems.map(item => `
                 <tr>
                   <td>${item.productName}</td>
-                  <td style="text-align: right;">${item.quantity}</td>
-                  <td style="text-align: right;">₱${item.unitPrice.toLocaleString()}</td>
-                  <td style="text-align: right;">₱${item.subtotal.toLocaleString()}</td>
+                  <td style="text-align:center;">${item.quantity}</td>
+                  <td style="text-align:right;">₱${item.unitPrice.toLocaleString()}</td>
+                  <td style="text-align:right;">₱${item.subtotal.toLocaleString()}</td>
                 </tr>
               `).join('')}
             </table>
-            <div style="text-align: right; padding-right: 50px;">
-              <p><strong>Subtotal:</strong> ₱${invoice.subtotal.toLocaleString()}</p>
-              <p><strong>Tax (${((invoice.tax / invoice.subtotal) * 100).toFixed(0)}%):</strong> ₱${invoice.tax.toLocaleString()}</p>
-              <p class="total">TOTAL: ₱${invoice.total.toLocaleString()}</p>
+            <div class="total-box">
+              <div class="total-label">Total Amount</div>
+              <div class="total-amount">₱${grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
             </div>
-            <div class="footer">
-              <p>Thank you for your business!</p>
-            </div>
+            <div class="footer"><p>Thank you for your business!</p></div>
           </body>
         </html>
       `);
@@ -154,18 +184,16 @@ export default function InvoicesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return { bg: '#d1fae5', text: '#065f46' }; // light green
-      case 'sent':
-        return { bg: '#dbeafe', text: '#0c4a6e' }; // light blue
-      case 'overdue':
-        return { bg: '#fee2e2', text: '#991b1b' }; // light red
-      case 'draft':
-        return { bg: '#f3f4f6', text: '#374151' }; // light gray
-      default:
-        return { bg: '#f3f4f6', text: '#374151' };
+      case 'paid':    return { bg: '#d1fae5', text: '#065f46' };
+      case 'sent':    return { bg: '#dbeafe', text: '#0c4a6e' };
+      case 'overdue': return { bg: '#fee2e2', text: '#991b1b' };
+      case 'draft':   return { bg: '#f3f4f6', text: '#374151' };
+      case 'done':    return { bg: '#c7d2fe', text: '#3730a3' };
+      default:        return { bg: '#f3f4f6', text: '#374151' };
     }
   };
+
+  const groups = groupInvoicesByCustomer();
 
   return (
     <div className="space-y-6">
@@ -176,20 +204,35 @@ export default function InvoicesPage() {
         icon={<FileText className="w-8 h-8" />}
         action={
           <Button
-            onClick={() => {
-              setSelectedInvoice(null);
-              setIsDialogOpen(true);
-            }}
+            onClick={() => setIsDialogOpen(true)}
             className="text-white gap-2 w-fit transition-colors"
             style={{ backgroundColor: '#e68bbe' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#eea1cd'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e68bbe'}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#eea1cd')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e68bbe')}
           >
             <Plus className="w-4 h-4" />
             New Invoice
           </Button>
         }
       />
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-gray-200">
+        {(['active', 'history'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 font-medium transition-colors capitalize ${
+              activeTab === tab
+                ? 'border-b-2 text-pink-600'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={activeTab === tab ? { borderBottomColor: '#e68bbe' } : {}}
+          >
+            {tab === 'active' ? 'Active Invoices' : 'History (Done)'}
+          </button>
+        ))}
+      </div>
 
       {/* Search + Sort */}
       <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
@@ -200,7 +243,7 @@ export default function InvoicesPage() {
           <Search className="absolute left-3 top-10 w-4 h-4 text-muted-foreground" />
           <Input
             id="search"
-            placeholder="Search by invoice ID, customer, or status..."
+            placeholder="Search by customer or status..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-primary/20"
@@ -220,113 +263,143 @@ export default function InvoicesPage() {
             <option value="dueDate-asc">Due Date (Soonest)</option>
             <option value="amount-desc">Amount (High to Low)</option>
             <option value="status-asc">Status</option>
-            <option value="id-asc">Invoice #</option>
           </select>
         </div>
       </div>
 
       {/* Invoices Table */}
       <div className="overflow-x-auto w-full">
-          {filteredInvoices.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground font-medium">No invoices found</p>
-              <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters or create a new invoice</p>
-            </div>
-          ) : (
-            <table className="w-full min-w-full border-collapse">
-                <thead>
-                  <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
-                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Invoice #</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Customer</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Date</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Due Date</th>
-                    <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Amount</th>
-                    <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Status</th>
-                    <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedInvoices.map((invoice, index) => {
-                    const isEvenRow = index % 2 === 0;
-                    const statusColors = getStatusColor(invoice.status);
+        {groups.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">No invoices found</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Try adjusting your filters or create a new invoice
+            </p>
+          </div>
+        ) : (
+          <table className="w-full min-w-full border-collapse">
+            <thead>
+              <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
+                <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Customer</th>
+                <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Invoice #</th>
+                <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Date</th>
+                <th className="text-left py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Due Date</th>
+                <th className="text-right py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Amount</th>
+                <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Status</th>
+                <th className="text-center py-1.5 px-2 font-medium text-xs whitespace-nowrap border border-white/20">Actions</th>
+              </tr>
+            </thead>
+            {groups.map((group, groupIndex) => {
+              const uniqueInvoices = group.invoices.filter(
+                (inv, idx, arr) => arr.findIndex(i => i.orderId === inv.orderId) === idx
+              );
+              const primary = uniqueInvoices[0];
+              const groupTotal = uniqueInvoices.reduce((sum, inv) => sum + inv.subtotal, 0);
+              const earliestDate = uniqueInvoices.reduce(
+                (min, inv) => inv.date < min ? inv.date : min,
+                primary.date
+              );
+              const latestDueDate = uniqueInvoices.reduce(
+                (max, inv) => inv.dueDate > max ? inv.dueDate : max,
+                primary.dueDate
+              );
+              const invoiceNumber = String(groupIndex + 1).padStart(3, '0');
+              const statusColors = getStatusColor(primary.status);
 
-                    return (
-                      <tr
-                        key={invoice.id}
-                        className="transition-colors"
-                        style={{ backgroundColor: isEvenRow ? 'white' : '#fde4f2' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9cee7'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isEvenRow ? 'white' : '#fde4f2'}
+              return (
+                <tbody key={group.customerName}>
+                  <tr
+                    className="transition-colors"
+                    style={{ backgroundColor: '#fde4f2' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9cee7')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fde4f2')}
+                  >
+                    <td className="py-1 px-2 text-xs font-medium text-foreground whitespace-nowrap border border-gray-200">
+                      {group.customerName}
+                    </td>
+                    <td className="py-1 px-2 text-xs font-semibold whitespace-nowrap border border-gray-200" style={{ color: '#e68bbe' }}>
+                      #{invoiceNumber}
+                    </td>
+                    <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
+                      {new Date(earliestDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
+                      {new Date(latestDueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="py-1 px-2 text-xs text-right font-semibold text-foreground whitespace-nowrap border border-gray-200">
+                      ₱{groupTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
+                      <span
+                        className="inline-block px-1.5 py-0.5 rounded text-xs font-medium capitalize"
+                        style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
                       >
-                        <td className="py-1 px-2 text-xs font-semibold whitespace-nowrap border border-gray-200" style={{ color: '#e68bbe' }}>
-                          #{String(index + 1).padStart(3, '0')}
-                        </td>
-                        <td className="py-1 px-2 text-xs font-medium text-foreground whitespace-nowrap border border-gray-200">
-                          {invoice.customerName}
-                        </td>
-                        <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
-                          {new Date(invoice.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </td>
-                        <td className="py-1 px-2 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
-                          {new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </td>
-                        <td className="py-1 px-2 text-xs text-right font-semibold text-foreground whitespace-nowrap border border-gray-200">
-                          ₱{invoice.total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
-                          <span
-                            className="inline-block px-1.5 py-0.5 rounded text-xs font-medium capitalize"
-                            style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
+                        {primary.status}
+                      </span>
+                    </td>
+                    <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
+                      <div className="flex items-center justify-center gap-1">
+                        {activeTab === 'active' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMarkGroupAsDone(group)}
+                            className="h-6 w-6 p-0 transition-colors"
+                            style={{ color: '#22c55e' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                            title="Mark as Done"
                           >
-                            {invoice.status}
-                          </span>
-                        </td>
-                        <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handlePrintInvoice(invoice)}
-                              className="h-6 w-6 p-0 transition-colors"
-                              style={{ color: '#e68bbe' }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f4b8da'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                            >
-                              <Download className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedInvoice(invoice);
-                                setDetailDialogOpen(true);
-                              }}
-                              className="h-6 w-6 p-0 transition-colors"
-                              style={{ color: '#e68bbe' }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f4b8da'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                            >
-                              <Eye className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteInvoice(invoice.id)}
-                              className="h-6 w-6 p-0 transition-colors text-red-600"
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                            <Check className="w-3 h-3" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handlePrintGroup(group)}
+                          className="h-6 w-6 p-0 transition-colors"
+                          style={{ color: '#e68bbe' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f4b8da')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          title="Print"
+                        >
+                          <Download className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedGroup(group);
+                            setDetailDialogOpen(true);
+                          }}
+                          className="h-6 w-6 p-0 transition-colors"
+                          style={{ color: '#e68bbe' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f4b8da')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          title="View"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteGroupPrompt(group)}
+                          className="h-6 w-6 p-0 transition-colors text-red-600"
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fee2e2')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
-              </table>
-          )}
+              );
+            })}
+          </table>
+        )}
       </div>
 
       {/* Create Invoice Dialog */}
@@ -338,20 +411,23 @@ export default function InvoicesPage() {
       />
 
       {/* Invoice Detail Dialog */}
-      {selectedInvoice && (
+      {selectedGroup && (
         <InvoiceDetailDialog
           isOpen={detailDialogOpen}
           onClose={() => {
             setDetailDialogOpen(false);
-            setSelectedInvoice(null);
+            setSelectedGroup(null);
           }}
-          invoice={selectedInvoice}
-          onUpdate={handleUpdateInvoice}
-          onPrint={() => handlePrintInvoice(selectedInvoice)}
-          onDelete={() => {
-            handleDeleteInvoice(selectedInvoice.id);
+          invoices={selectedGroup.invoices}
+          invoiceNumber={String(
+            groups.findIndex(g => g.customerName === selectedGroup.customerName) + 1
+          ).padStart(3, '0')}
+          onUpdateAll={handleUpdateGroup}
+          onPrint={() => handlePrintGroup(selectedGroup)}
+          onDeleteAll={() => {
             setDetailDialogOpen(false);
-            setSelectedInvoice(null);
+            handleDeleteGroupPrompt(selectedGroup);
+            setSelectedGroup(null);
           }}
         />
       )}
@@ -361,9 +437,9 @@ export default function InvoicesPage() {
         isOpen={confirmDialogOpen}
         onClose={() => {
           setConfirmDialogOpen(false);
-          setInvoiceToDelete(null);
+          setGroupToDelete(null);
         }}
-        onConfirm={confirmDeleteInvoice}
+        onConfirm={confirmDeleteGroup}
         title="Delete Invoice"
         description="Are you sure you want to delete this invoice? This action cannot be undone."
         confirmText="Delete Invoice"

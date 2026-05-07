@@ -29,18 +29,10 @@ export default function InvoiceDialog({
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
-  const [taxRate, setTaxRate] = useState(7);
   const [isSaving, setIsSaving] = useState(false);
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId);
-
-  const calculateTotals = () => {
-    if (!selectedOrder) return { subtotal: 0, tax: 0, total: 0 };
-    const subtotal = selectedOrder.total;
-    const tax = Math.round(subtotal * (taxRate / 100));
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
-  };
+  const total = selectedOrder?.total ?? 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +41,6 @@ export default function InvoiceDialog({
       return;
     }
 
-    const { subtotal, tax, total } = calculateTotals();
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
 
@@ -60,8 +51,8 @@ export default function InvoiceDialog({
         date: new Date().toISOString().split('T')[0],
         dueDate: dueDate.toISOString().split('T')[0],
         items: selectedOrder.items,
-        subtotal,
-        tax,
+        subtotal: total,
+        tax: 0,
         total,
         status: 'draft',
         customerName,
@@ -79,8 +70,6 @@ export default function InvoiceDialog({
     }
   };
 
-  const { subtotal, tax, total } = calculateTotals();
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -89,7 +78,6 @@ export default function InvoiceDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Order Selection */}
           <div className="space-y-2">
             <Label htmlFor="order">Select Order *</Label>
             <select
@@ -108,7 +96,6 @@ export default function InvoiceDialog({
             </select>
           </div>
 
-          {/* Customer Info */}
           <div className="space-y-2">
             <Label htmlFor="name">Customer Name *</Label>
             <Input
@@ -134,34 +121,11 @@ export default function InvoiceDialog({
             />
           </div>
 
-          {/* Tax Rate */}
-          <div className="space-y-2">
-            <Label htmlFor="taxRate">Tax Rate (%)</Label>
-            <Input
-              id="taxRate"
-              type="number"
-              step="0.1"
-              value={taxRate}
-              onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-              className="border-primary/20"
-              disabled={isSaving}
-            />
-          </div>
-
-          {/* Totals Preview */}
           {selectedOrder && (
-            <div className="pt-4 space-y-2 border-t border-border">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal:</span>
-                <span className="font-medium">₱{subtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax ({taxRate}%):</span>
-                <span className="font-medium">₱{tax.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
+            <div className="pt-4 border-t border-border">
+              <div className="flex justify-between items-center text-lg font-bold">
                 <span>Total:</span>
-                <span className="text-primary">₱{total.toLocaleString()}</span>
+                <span className="text-primary">₱{total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           )}
