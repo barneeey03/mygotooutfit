@@ -54,7 +54,7 @@ export default function InvoiceDialog({
         subtotal: total,
         tax: 0,
         total,
-        status: 'draft',
+        status: 'overdue',
         customerName,
         customerEmail,
       });

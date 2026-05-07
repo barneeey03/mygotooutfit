@@ -18,7 +18,7 @@ interface CustomerGroup {
 export default function InvoicesPage() {
   const { invoices, orders, addInvoice, updateInvoice, deleteInvoice } = useData();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOption, setSortOption] = useState('date-desc');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<CustomerGroup | null>(null);
@@ -26,27 +26,21 @@ export default function InvoicesPage() {
   const [groupToDelete, setGroupToDelete] = useState<CustomerGroup | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
 
-  const filteredInvoices = invoices.filter(inv => {
-    const matchesSearch =
-      inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.status.toLowerCase().includes(searchTerm.toLowerCase());
-    const isInHistory = inv.status === 'done';
-    if (activeTab === 'active' && !isInHistory) return matchesSearch;
-    if (activeTab === 'history' && isInHistory) return matchesSearch;
-    return false;
-  });
+  const filteredInvoices = invoices
+    .filter(inv => {
+      const matchesSearch =
+        inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inv.status.toLowerCase().includes(searchTerm.toLowerCase());
+      const isInHistory = inv.status === 'paid';
+      if (activeTab === 'active' && !isInHistory) return matchesSearch;
+      if (activeTab === 'history' && isInHistory) return matchesSearch;
+      return false;
+    })
+    .filter(inv => statusFilter === 'all' || inv.status === statusFilter)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const sortedInvoices = [...filteredInvoices].sort((a, b) => {
-    switch (sortOption) {
-      case 'id-asc':        return a.id.localeCompare(b.id);
-      case 'date-desc':     return new Date(b.date).getTime() - new Date(a.date).getTime();
-      case 'dueDate-asc':   return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      case 'amount-desc':   return b.total - a.total;
-      case 'status-asc':    return a.status.localeCompare(b.status);
-      default:              return new Date(b.date).getTime() - new Date(a.date).getTime();
-    }
-  });
+  const sortedInvoices = filteredInvoices;
 
   const groupInvoicesByCustomer = (): CustomerGroup[] => {
     const grouped = new Map<string, Invoice[]>();
@@ -85,7 +79,7 @@ export default function InvoicesPage() {
 
   const handleMarkGroupAsDone = async (group: CustomerGroup) => {
     try {
-      await Promise.all(group.invoices.map(inv => updateInvoice(inv.id, { status: 'done' })));
+      await Promise.all(group.invoices.map(inv => updateInvoice(inv.id, { status: 'paid' })));
     } catch (error) {
       alert('Failed to mark invoice as done');
       console.error(error);
@@ -184,13 +178,20 @@ export default function InvoicesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':    return { bg: '#d1fae5', text: '#065f46' };
-      case 'sent':    return { bg: '#dbeafe', text: '#0c4a6e' };
-      case 'overdue': return { bg: '#fee2e2', text: '#991b1b' };
-      case 'draft':   return { bg: '#f3f4f6', text: '#374151' };
-      case 'done':    return { bg: '#c7d2fe', text: '#3730a3' };
-      default:        return { bg: '#f3f4f6', text: '#374151' };
+      case 'paid':          return { bg: '#d1fae5', text: '#065f46' };
+      case 'down-payment':  return { bg: '#fef3c7', text: '#92400e' };
+      case 'overdue':       return { bg: '#fee2e2', text: '#991b1b' };
+      default:              return { bg: '#f3f4f6', text: '#374151' };
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      paid: 'Paid',
+      'down-payment': 'Down Payment',
+      overdue: 'Overdue',
+    };
+    return labels[status] ?? status;
   };
 
   const groups = groupInvoicesByCustomer();
@@ -250,19 +251,19 @@ export default function InvoicesPage() {
           />
         </div>
         <div>
-          <label htmlFor="invoice-sort" className="text-sm font-medium text-muted-foreground mb-2 block">
-            Sort by
+          <label htmlFor="status-filter" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Status
           </label>
           <select
-            id="invoice-sort"
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
+            id="status-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
           >
-            <option value="date-desc">Date (Newest)</option>
-            <option value="dueDate-asc">Due Date (Soonest)</option>
-            <option value="amount-desc">Amount (High to Low)</option>
-            <option value="status-asc">Status</option>
+            <option value="all">All Statuses</option>
+            <option value="overdue">Overdue</option>
+            <option value="down-payment">Down Payment</option>
+            <option value="paid">Paid</option>
           </select>
         </div>
       </div>
@@ -335,7 +336,7 @@ export default function InvoicesPage() {
                         className="inline-block px-1.5 py-0.5 rounded text-xs font-medium capitalize"
                         style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
                       >
-                        {primary.status}
+                        {getStatusLabel(primary.status)}
                       </span>
                     </td>
                     <td className="py-1 px-2 text-xs text-center whitespace-nowrap border border-gray-200">

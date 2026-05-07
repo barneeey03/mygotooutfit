@@ -52,7 +52,8 @@ export interface Invoice {
   subtotal: number;
   tax: number;
   total: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'done';
+  downpayment?: number;
+  status: 'paid' | 'down-payment' | 'overdue';
   customerName: string;
   customerEmail: string;
 }
@@ -291,7 +292,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       subtotal: order.total,
       tax: Math.round(order.total * 0.07),
       total: Math.round(order.total * 1.07),
-      status: 'draft',
+      status: 'overdue',
       customerName: order.customerName,
       customerEmail: order.customerEmail || '',
     });

@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Invoice } from '@/lib/data-context';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { FileText, Printer, Trash2, X } from 'lucide-react';
 
 interface InvoiceDetailDialogProps {
@@ -15,14 +17,12 @@ interface InvoiceDetailDialogProps {
   onDeleteAll: () => void;
 }
 
-const STATUS_OPTIONS = ['draft', 'sent', 'paid', 'overdue'] as const;
+const STATUS_OPTIONS = ['overdue', 'down-payment', 'paid'] as const;
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  draft:   { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
-  sent:    { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
-  paid:    { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
-  overdue: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
-  done:    { bg: '#c7d2fe', text: '#3730a3', border: '#a5b4fc' },
+const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  overdue:          { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5', label: 'Overdue' },
+  'down-payment':   { bg: '#fef3c7', text: '#92400e', border: '#fde68a', label: 'Down Payment' },
+  paid:             { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7', label: 'Paid' },
 };
 
 export default function InvoiceDetailDialog({
@@ -34,18 +34,24 @@ export default function InvoiceDetailDialog({
   onPrint,
   onDeleteAll,
 }: InvoiceDetailDialogProps) {
-  if (invoices.length === 0) return null;
+  const [downpaymentInput, setDownpaymentInput] = useState(0);
 
-  // Deduplicate by orderId so the same order never gets counted twice
   const uniqueInvoices = invoices.filter(
     (inv, idx, arr) => arr.findIndex(i => i.orderId === inv.orderId) === idx
   );
-
   const primary = uniqueInvoices[0];
+
+  useEffect(() => {
+    if (primary) setDownpaymentInput(primary.downpayment ?? 0);
+  }, [primary?.id, invoices.length]);
+
+  if (invoices.length === 0) return null;
+
   const allItems = uniqueInvoices.flatMap(inv => inv.items);
   const grandTotal = uniqueInvoices.reduce((sum, inv) => sum + inv.subtotal, 0);
   const currentStatus = primary.status;
-  const statusStyle = STATUS_STYLES[currentStatus] ?? STATUS_STYLES.draft;
+  const statusStyle = STATUS_STYLES[currentStatus] ?? STATUS_STYLES.overdue;
+  const balanceDue = Math.max(0, grandTotal - downpaymentInput);
 
   const earliestDate = uniqueInvoices.reduce(
     (min, inv) => inv.date < min ? inv.date : min,
@@ -55,6 +61,12 @@ export default function InvoiceDetailDialog({
     (max, inv) => inv.dueDate > max ? inv.dueDate : max,
     primary.dueDate
   );
+
+  const handleSaveDownpayment = () => {
+    const amount = Math.max(0, Math.min(downpaymentInput, grandTotal));
+    const newStatus = amount >= grandTotal ? 'paid' : amount > 0 ? 'down-payment' : 'overdue';
+    onUpdateAll({ downpayment: amount, status: newStatus });
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -115,14 +127,14 @@ export default function InvoiceDetailDialog({
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Status</span>
                   <span
-                    className="px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize"
+                    className="px-2.5 py-0.5 rounded-full text-xs font-bold border"
                     style={{
                       backgroundColor: statusStyle.bg,
                       color: statusStyle.text,
                       borderColor: statusStyle.border,
                     }}
                   >
-                    {currentStatus}
+                    {statusStyle.label}
                   </span>
                 </div>
               </div>
@@ -180,18 +192,75 @@ export default function InvoiceDetailDialog({
             </div>
           </div>
 
-          {/* Total */}
+          {/* Payment Summary */}
           <div className="flex justify-end">
             <div
-              className="rounded-2xl px-6 py-4 flex items-center gap-10"
+              className="rounded-2xl px-6 py-4 space-y-2 min-w-64"
               style={{ background: 'linear-gradient(135deg, #fdf0f8 0%, #fce7f3 100%)', border: '1.5px solid #f5c2e8' }}
             >
-              <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                Total Amount
-              </span>
-              <span className="text-2xl font-black" style={{ color: '#c9508a' }}>
-                ₱{grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-              </span>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground font-medium">Total Amount</span>
+                <span className="font-bold text-foreground">
+                  ₱{grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              {downpaymentInput > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground font-medium">Down Payment</span>
+                  <span className="font-bold" style={{ color: '#92400e' }}>
+                    − ₱{downpaymentInput.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+              <div className="border-t pt-2" style={{ borderColor: '#f5c2e8' }}>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    {downpaymentInput > 0 ? 'Balance Due' : 'Total Due'}
+                  </span>
+                  <span className="text-2xl font-black" style={{ color: '#c9508a' }}>
+                    ₱{balanceDue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Down Payment Input */}
+          <div className="border-t pt-5" style={{ borderColor: '#fce7f3' }}>
+            <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: '#e68bbe' }}>
+              Down Payment
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-xs">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₱</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={grandTotal}
+                  step="0.01"
+                  value={downpaymentInput}
+                  onChange={(e) => setDownpaymentInput(parseFloat(e.target.value) || 0)}
+                  className="pl-7 border-primary/20 font-semibold"
+                  placeholder="0.00"
+                />
+              </div>
+              <Button
+                size="sm"
+                onClick={handleSaveDownpayment}
+                className="text-white font-semibold text-xs px-4"
+                style={{ backgroundColor: '#e68bbe' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#c9508a')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e68bbe')}
+              >
+                Save
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {downpaymentInput >= grandTotal
+                  ? 'Full payment — will mark as Paid'
+                  : downpaymentInput > 0
+                  ? 'Partial payment — will mark as Down Payment'
+                  : 'Enter amount received'}
+              </p>
             </div>
           </div>
 
@@ -208,7 +277,7 @@ export default function InvoiceDetailDialog({
                   <button
                     key={status}
                     onClick={() => onUpdateAll({ status })}
-                    className="px-4 py-1.5 rounded-full text-xs font-bold border capitalize transition-all"
+                    className="px-4 py-1.5 rounded-full text-xs font-bold border transition-all"
                     style={{
                       backgroundColor: isActive ? s.bg : 'transparent',
                       color: isActive ? s.text : '#9ca3af',
@@ -216,7 +285,7 @@ export default function InvoiceDetailDialog({
                       boxShadow: isActive ? `0 0 0 2px ${s.border}` : 'none',
                     }}
                   >
-                    {status}
+                    {s.label}
                   </button>
                 );
               })}
