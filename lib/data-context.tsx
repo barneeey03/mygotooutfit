@@ -279,39 +279,43 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
     await Promise.all(updates);
 
-    await addDoc(collection(db, 'orders'), order);
+    const orderRef = await addDoc(collection(db, 'orders'), order);
+
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 30);
+    await addInvoice({
+      orderId: orderRef.id,
+      date: new Date().toISOString().split('T')[0],
+      dueDate: dueDate.toISOString().split('T')[0],
+      items: order.items,
+      subtotal: order.total,
+      tax: Math.round(order.total * 0.07),
+      total: Math.round(order.total * 1.07),
+      status: 'draft',
+      customerName: order.customerName,
+      customerEmail: order.customerEmail || '',
+    });
   };
 
   const updateOrder = async (id: string, updates: Partial<Order>) => {
     const order = orders.find(o => o.id === id);
     if (!order) return;
 
-    // Handle status changes
-    if (updates.status && updates.status !== order.status) {
-      if (updates.status === 'completed' && order.status !== 'completed') {
-        // Order is being completed - create invoice automatically
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30);
-
-        await addInvoice({
-          orderId: order.id,
-          date: new Date().toISOString().split('T')[0],
-          dueDate: dueDate.toISOString().split('T')[0],
-          items: order.items,
-          subtotal: order.total,
-          tax: Math.round(order.total * 0.07), // 7% tax
-          total: Math.round(order.total * 1.07),
-          status: 'draft',
-          customerName: order.customerName,
-          customerEmail: order.customerEmail || '',
-        });
-      }
-    }
-
     await updateDoc(doc(db, 'orders', id), updates);
   };
 
   const deleteOrder = async (id: string) => {
+    const order = orders.find(o => o.id === id);
+    if (order) {
+      const restores = order.items.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+          return updateProduct(item.productId, { quantity: product.quantity + item.quantity });
+        }
+        return Promise.resolve();
+      });
+      await Promise.all(restores);
+    }
     await deleteDoc(doc(db, 'orders', id));
   };
 
