@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Product, OrderItem } from '@/lib/data-context';
+import { Product, OrderItem, Order } from '@/lib/data-context';
 import {
   Dialog,
   DialogContent,
@@ -17,8 +17,10 @@ import { Trash2, Plus } from 'lucide-react';
 interface OrderDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (order: any) => Promise<void>;
+  onSave: (order: Omit<Order, 'id'>) => Promise<void>;
+  onEdit?: (order: Order) => Promise<void>;
   products: Product[];
+  order?: Order | null;
 }
 
 type ItemState = Omit<OrderItem, 'subtotal'> & {
@@ -30,13 +32,17 @@ export default function OrderDialog({
   isOpen,
   onClose,
   onSave,
+  onEdit,
   products,
+  order,
 }: OrderDialogProps) {
   const [items, setItems] = useState<ItemState[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  const isEditMode = !!order;
 
   useEffect(() => {
     if (!isOpen) {
@@ -47,17 +53,38 @@ export default function OrderDialog({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (order && isOpen) {
+      setCustomerName(order.customerName);
+      setCustomerEmail(order.customerEmail || '');
+      setNotes(order.notes);
+      setItems(
+        order.items.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          selectedBrand: products.find(p => p.id === item.productId)?.brandName || '',
+          selectedCategory: products.find(p => p.id === item.productId)?.category || '',
+        }))
+      );
+    }
+  }, [order, isOpen, products]);
+
   const uniqueBrands = [...new Set(products.map(p => p.brandName))].sort();
 
   const addItem = () => {
-    setItems([...items, {
-      productId: '',
-      productName: '',
-      quantity: 1,
-      unitPrice: 0,
-      selectedBrand: '',
-      selectedCategory: '',
-    }]);
+    setItems([
+      ...items,
+      {
+        productId: '',
+        productName: '',
+        quantity: 1,
+        unitPrice: 0,
+        selectedBrand: '',
+        selectedCategory: '',
+      },
+    ]);
   };
 
   const removeItem = (index: number) => {
@@ -112,9 +139,8 @@ export default function OrderDialog({
     setItems(newItems);
   };
 
-  const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-  };
+  const calculateTotal = () =>
+    items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,21 +167,32 @@ export default function OrderDialog({
 
     setIsSaving(true);
     try {
-      await onSave({
-        date: new Date().toISOString().split('T')[0],
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        items: orderItems,
-        total: calculateTotal(),
-        status: 'pending' as const,
-        notes,
-      });
+      if (isEditMode && order && onEdit) {
+        await onEdit({
+          ...order,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          items: orderItems,
+          total: calculateTotal(),
+          notes,
+        });
+      } else {
+        await onSave({
+          date: new Date().toISOString().split('T')[0],
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          items: orderItems,
+          total: calculateTotal(),
+          status: 'pending' as const,
+          notes,
+        });
+      }
       setItems([]);
       setCustomerName('');
       setCustomerEmail('');
       setNotes('');
     } catch (error) {
-      alert('Failed to create order');
+      alert('Failed to save order');
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -166,7 +203,7 @@ export default function OrderDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Order</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Edit Order' : 'Create New Order'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -204,21 +241,28 @@ export default function OrderDialog({
               <p className="text-sm text-muted-foreground">Add items to your order</p>
             ) : (
               items.map((item, index) => {
-                const brandCategories = [...new Set(
-                  products
-                    .filter(p => p.brandName === item.selectedBrand)
-                    .map(p => p.category)
-                )].sort();
+                const brandCategories = [
+                  ...new Set(
+                    products
+                      .filter(p => p.brandName === item.selectedBrand)
+                      .map(p => p.category)
+                  ),
+                ].sort();
 
                 const matchingProducts = products.filter(
-                  p => p.brandName === item.selectedBrand && p.category === item.selectedCategory
+                  p =>
+                    p.brandName === item.selectedBrand &&
+                    p.category === item.selectedCategory
                 );
 
                 const selectedProduct = products.find(p => p.id === item.productId);
 
                 return (
-                  <div key={index} className="border border-primary/10 rounded-lg p-3 space-y-2 bg-muted/20">
-                    {/* Brand + Category row */}
+                  <div
+                    key={index}
+                    className="border border-primary/10 rounded-lg p-3 space-y-2 bg-muted/20"
+                  >
+                    {/* Brand + Category */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-muted-foreground">Brand</p>
@@ -230,7 +274,9 @@ export default function OrderDialog({
                         >
                           <option value="">Select brand</option>
                           {uniqueBrands.map(brand => (
-                            <option key={brand} value={brand}>{brand}</option>
+                            <option key={brand} value={brand}>
+                              {brand}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -238,46 +284,56 @@ export default function OrderDialog({
                         <p className="text-xs font-medium text-muted-foreground">Category</p>
                         <select
                           value={item.selectedCategory}
-                          onChange={(e) => updateItem(index, 'selectedCategory', e.target.value)}
+                          onChange={(e) =>
+                            updateItem(index, 'selectedCategory', e.target.value)
+                          }
                           className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm disabled:opacity-50"
                           disabled={!item.selectedBrand || isSaving}
                         >
                           <option value="">Select category</option>
                           {brandCategories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
                           ))}
                         </select>
                       </div>
                     </div>
 
-                    {/* Stock select — only when multiple products share the same brand+category */}
-                    {item.selectedBrand && item.selectedCategory && matchingProducts.length > 1 && (
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-muted-foreground">Select Stock</p>
-                        <select
-                          value={item.productId}
-                          onChange={(e) => updateItem(index, 'productId', e.target.value)}
-                          className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
-                          disabled={isSaving}
-                        >
-                          <option value="">Select stock entry</option>
-                          {matchingProducts.map(p => (
-                            <option key={p.id} value={p.id}>
-                              Stock: {p.quantity} | ₱{p.sellingPrice.toLocaleString()}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                    {/* Stock select — only when multiple products share brand+category */}
+                    {item.selectedBrand &&
+                      item.selectedCategory &&
+                      matchingProducts.length > 1 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Select Stock
+                          </p>
+                          <select
+                            value={item.productId}
+                            onChange={(e) => updateItem(index, 'productId', e.target.value)}
+                            className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
+                            disabled={isSaving}
+                          >
+                            <option value="">Select stock entry</option>
+                            {matchingProducts.map(p => (
+                              <option key={p.id} value={p.id}>
+                                Stock: {p.quantity} | ₱{p.sellingPrice.toLocaleString()}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
                     {/* Stock availability badge */}
                     {selectedProduct && (
                       <div className="flex items-center gap-2 text-xs">
-                        <span className={
-                          selectedProduct.quantity <= selectedProduct.reorderLevel
-                            ? 'text-destructive font-medium'
-                            : 'text-green-600 font-medium'
-                        }>
+                        <span
+                          className={
+                            selectedProduct.quantity <= selectedProduct.reorderLevel
+                              ? 'text-destructive font-medium'
+                              : 'text-green-600 font-medium'
+                          }
+                        >
                           Available stock: {selectedProduct.quantity}
                         </span>
                         {selectedProduct.quantity <= selectedProduct.reorderLevel && (
@@ -294,7 +350,9 @@ export default function OrderDialog({
                           type="number"
                           min="1"
                           value={item.quantity}
-                          onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                          onChange={(e) =>
+                            updateItem(index, 'quantity', parseInt(e.target.value) || 1)
+                          }
                           placeholder="Qty"
                           className="border-primary/20 text-sm"
                           disabled={isSaving || !item.productId}
@@ -333,12 +391,7 @@ export default function OrderDialog({
                 );
               })
             )}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addItem}
-              className="w-full gap-2"
-            >
+            <Button type="button" variant="outline" onClick={addItem} className="w-full gap-2">
               <Plus className="w-4 h-4" />
               Add Item
             </Button>
@@ -360,16 +413,33 @@ export default function OrderDialog({
           <div className="pt-4 border-t border-border">
             <div className="flex justify-between items-center">
               <span className="text-lg font-semibold">Order Total</span>
-              <span className="text-2xl font-bold text-primary">₱{calculateTotal().toLocaleString()}</span>
+              <span className="text-2xl font-bold text-primary">
+                ₱{calculateTotal().toLocaleString()}
+              </span>
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSaving}
+            >
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white" disabled={isSaving}>
-              {isSaving ? 'Creating...' : 'Create Order'}
+            <Button
+              type="submit"
+              className="bg-primary hover:bg-primary/90 text-white"
+              disabled={isSaving}
+            >
+              {isSaving
+                ? isEditMode
+                  ? 'Saving...'
+                  : 'Creating...'
+                : isEditMode
+                ? 'Save Changes'
+                : 'Create Order'}
             </Button>
           </DialogFooter>
         </form>

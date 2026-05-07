@@ -54,6 +54,36 @@ export default function InvoicesPage() {
     }));
   };
 
+  // ─── Sync invoice from its linked order ───────────────────────────────────
+  const syncInvoicesFromOrder = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const linkedInvoices = invoices.filter(inv => inv.orderId === orderId);
+    if (linkedInvoices.length === 0) return;
+
+    const updatedItems = order.items.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      subtotal: item.quantity * item.unitPrice,
+    }));
+    const updatedSubtotal = updatedItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+    await Promise.all(
+      linkedInvoices.map(inv =>
+        updateInvoice(inv.id, {
+          items: updatedItems,
+          subtotal: updatedSubtotal,
+          customerName: order.customerName,
+          customerEmail: order.customerEmail ?? inv.customerEmail,
+        })
+      )
+    );
+  };
+
+  // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleAddInvoice = async (invoice: Omit<Invoice, 'id'>) => {
     try {
       await addInvoice(invoice);
@@ -64,10 +94,22 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleEditInvoice = async (invoice: Invoice) => {
+    setSelectedGroup({ customerName: invoice.customerName, invoices: [invoice] });
+    setIsDialogOpen(true);
+  };
+
   const handleUpdateGroup = async (updates: Partial<Invoice>) => {
     if (selectedGroup) {
       try {
         await Promise.all(selectedGroup.invoices.map(inv => updateInvoice(inv.id, updates)));
+
+        // If any invoice in this group is linked to an order, sync from that order too
+        const orderIds = [
+          ...new Set(selectedGroup.invoices.map(inv => inv.orderId).filter(Boolean)),
+        ] as string[];
+        await Promise.all(orderIds.map(syncInvoicesFromOrder));
+
         setSelectedGroup(null);
         setDetailDialogOpen(false);
       } catch (error) {
@@ -176,6 +218,7 @@ export default function InvoicesPage() {
     }
   };
 
+  // ─── Helpers ──────────────────────────────────────────────────────────────
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':          return { bg: '#d1fae5', text: '#065f46' };
@@ -196,6 +239,7 @@ export default function InvoicesPage() {
 
   const groups = groupInvoicesByCustomer();
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -235,7 +279,7 @@ export default function InvoicesPage() {
         ))}
       </div>
 
-      {/* Search + Sort */}
+      {/* Search + Filter */}
       <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
         <div className="relative">
           <label htmlFor="search" className="text-sm font-medium text-muted-foreground mb-2 block">
@@ -408,6 +452,7 @@ export default function InvoicesPage() {
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         onSave={handleAddInvoice}
+        onEdit={handleAddInvoice}
         orders={orders}
       />
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Order, Invoice } from '@/lib/data-context';
+import { Order, Invoice, OrderItem } from '@/lib/data-context';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ interface InvoiceDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (invoice: Omit<Invoice, 'id'>) => Promise<void>;
+  onEdit: (invoice: Invoice) => Promise<void>;
+
   orders: Order[];
 }
 

@@ -4,7 +4,7 @@ import { useState, type ChangeEvent } from 'react';
 import { useData, Order } from '@/lib/data-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart, Plus, Eye, Trash2, Search, History } from 'lucide-react';
+import { ShoppingCart, Plus, Eye, Trash2, Search, History, Edit } from 'lucide-react';
 import PageHeader from '@/components/page-header';
 import OrderDialog from '@/components/order-dialog';
 import OrderDetailDialog from '@/components/order-detail-dialog';
@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 };
 
 export default function OrdersPage() {
-  const { orders, products, addOrder, updateOrder, deleteOrder } = useData();
+  const { orders, products, invoices, addOrder, updateOrder, deleteOrder, updateInvoice } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -28,6 +28,33 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
 
+  // ─── Sync linked invoices whenever an order changes ───────────────────────
+  const syncInvoicesFromOrder = async (order: Order) => {
+    const linkedInvoices = invoices.filter(inv => inv.orderId === order.id);
+    if (linkedInvoices.length === 0) return;
+
+    const updatedItems = order.items.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      subtotal: item.quantity * item.unitPrice,
+    }));
+    const updatedSubtotal = updatedItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+    await Promise.all(
+      linkedInvoices.map(inv =>
+        updateInvoice(inv.id, {
+          items: updatedItems,
+          subtotal: updatedSubtotal,
+          customerName: order.customerName,
+          customerEmail: order.customerEmail ?? inv.customerEmail,
+        })
+      )
+    );
+  };
+
+  // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleAddOrder = async (order: Omit<Order, 'id'>) => {
     try {
       await addOrder(order);
@@ -38,17 +65,38 @@ export default function OrdersPage() {
     }
   };
 
+  const handleEditOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setIsDialogOpen(true);
+  };
+
+  const handleUpdateOrderDialog = async (order: Order) => {
+    try {
+      await updateOrder(order.id, order);
+      // Sync all invoices linked to this order
+      await syncInvoicesFromOrder(order);
+      setIsDialogOpen(false);
+      setSelectedOrder(null);
+    } catch (error) {
+      alert('Failed to update order');
+      console.error(error);
+    }
+  };
+
   const handleUpdateOrder = async (updates: Partial<Order>) => {
     if (selectedOrder) {
       try {
         await updateOrder(selectedOrder.id, updates);
-        // If the order was just completed, switch to history tab
+        const updatedOrder = { ...selectedOrder, ...updates };
+        // Sync invoices with whatever changed
+        await syncInvoicesFromOrder(updatedOrder);
+
         if (updates.status === 'completed') {
           setDetailDialogOpen(false);
           setSelectedOrder(null);
           setActiveTab('history');
         } else {
-          setSelectedOrder({ ...selectedOrder, ...updates });
+          setSelectedOrder(updatedOrder);
         }
       } catch (error) {
         alert('Failed to update order');
@@ -74,12 +122,15 @@ export default function OrdersPage() {
     }
   };
 
+  // ─── Filtering ────────────────────────────────────────────────────────────
   const filteredOrders = orders
     .filter(order =>
       order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.items.some(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()))
+      order.items.some(item =>
+        item.productName.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     )
     .filter(order => statusFilter === 'all' || order.status === statusFilter)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -88,6 +139,7 @@ export default function OrdersPage() {
   const historyOrders = filteredOrders.filter(o => o.status === 'completed');
   const displayedOrders = activeTab === 'active' ? activeOrders : historyOrders;
 
+  // ─── Table render ─────────────────────────────────────────────────────────
   const renderTable = (orderList: Order[]) => {
     if (orderList.length === 0) {
       return (
@@ -125,7 +177,11 @@ export default function OrdersPage() {
           <tbody>
             {orderList.map((order, index) => {
               const isEven = index % 2 === 0;
-              const cfg = STATUS_CONFIG[order.status] ?? { label: order.status, bg: '#f3f4f6', text: '#374151' };
+              const cfg = STATUS_CONFIG[order.status] ?? {
+                label: order.status,
+                bg: '#f3f4f6',
+                text: '#374151',
+              };
 
               return (
                 <tr
@@ -133,7 +189,9 @@ export default function OrdersPage() {
                   className="transition-colors"
                   style={{ backgroundColor: isEven ? 'white' : '#fde4f2' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9cee7')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isEven ? 'white' : '#fde4f2')}
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = isEven ? 'white' : '#fde4f2')
+                  }
                 >
                   <td className="py-1.5 px-3 text-xs text-muted-foreground font-semibold whitespace-nowrap border border-gray-200">
                     #{String(index + 1).padStart(3, '0')}
@@ -142,7 +200,11 @@ export default function OrdersPage() {
                     {order.customerName}
                   </td>
                   <td className="py-1.5 px-3 text-xs text-muted-foreground whitespace-nowrap border border-gray-200">
-                    {new Date(order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    {new Date(order.date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
                   </td>
                   <td className="py-1.5 px-3 text-xs text-center font-semibold border border-gray-200">
                     {order.items.length}
@@ -166,21 +228,50 @@ export default function OrdersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => { setSelectedOrder(order); setDetailDialogOpen(true); }}
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setDetailDialogOpen(true);
+                        }}
                         className="h-6 w-6 p-0 transition-colors"
                         style={{ color: '#e68bbe' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f4b8da')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor = '#f4b8da')
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.backgroundColor = 'transparent')
+                        }
+                        title="View"
                       >
                         <Eye className="w-3 h-3" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => handleEditOrder(order)}
+                        className="h-6 w-6 p-0 transition-colors"
+                        style={{ color: '#e68bbe' }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor = '#f4b8da')
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.backgroundColor = 'transparent')
+                        }
+                        title="Edit"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleDeleteOrder(order.id)}
                         className="h-6 w-6 p-0 transition-colors text-red-500"
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fee2e2')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor = '#fee2e2')
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.backgroundColor = 'transparent')
+                        }
+                        title="Delete"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -195,6 +286,7 @@ export default function OrdersPage() {
     );
   };
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -216,7 +308,7 @@ export default function OrdersPage() {
         }
       />
 
-      {/* Search + Sort */}
+      {/* Search + Filter */}
       <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
         <div className="relative">
           <label htmlFor="search" className="text-sm font-medium text-muted-foreground mb-2 block">
@@ -301,12 +393,14 @@ export default function OrdersPage() {
       {/* Table */}
       {renderTable(displayedOrders)}
 
-      {/* Create Order Dialog */}
+      {/* Create / Edit Order Dialog */}
       <OrderDialog
         isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        onClose={() => { setIsDialogOpen(false); setSelectedOrder(null); }}
         onSave={handleAddOrder}
+        onEdit={handleUpdateOrderDialog}
         products={products}
+        order={selectedOrder}
       />
 
       {/* Order Detail Dialog */}
