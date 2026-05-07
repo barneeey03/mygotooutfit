@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface InventoryDialogProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ export default function InventoryDialog({
   onSave,
   product,
 }: InventoryDialogProps) {
-  const { brands, categories, addBrand, addCategory, deleteBrand, deleteCategory } = useData();
+  const { brands, categories, addBrand, addCategory } = useData();
   const [formData, setFormData] = useState({
     brandName: '',
     category: '',
@@ -96,27 +96,6 @@ export default function InventoryDialog({
     }
   };
 
-  const handleDeleteBrand = async (brandId: string) => {
-    if (confirm('Delete this brand?')) {
-      try {
-        await deleteBrand(brandId);
-      } catch (error) {
-        alert('Failed to delete brand');
-        console.error(error);
-      }
-    }
-  };
-
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (confirm('Delete this category?')) {
-      try {
-        await deleteCategory(categoryId);
-      } catch (error) {
-        alert('Failed to delete category');
-        console.error(error);
-      }
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,27 +169,6 @@ export default function InventoryDialog({
                 </Button>
               </div>
             )}
-            {/* Brand list with delete options */}
-            {brands.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {brands.map((brand) => (
-                  <div
-                    key={brand.id}
-                    className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs"
-                  >
-                    <span>{brand.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteBrand(brand.id)}
-                      className="hover:text-red-600"
-                      disabled={isSaving}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Category */}
@@ -257,27 +215,6 @@ export default function InventoryDialog({
                 >
                   Add
                 </Button>
-              </div>
-            )}
-            {/* Category list with delete options */}
-            {categories.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {categories.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs"
-                  >
-                    <span>{cat.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteCategory(cat.id)}
-                      className="hover:text-red-600"
-                      disabled={isSaving}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
               </div>
             )}
           </div>
