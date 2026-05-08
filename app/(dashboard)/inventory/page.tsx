@@ -178,7 +178,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Inventory Table */}
-      <div className="overflow-x-auto w-full">
+      <div className="overflow-x-auto w-full max-h-[520px] overflow-y-auto">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />

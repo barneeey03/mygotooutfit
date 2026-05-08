@@ -160,7 +160,7 @@ export default function OrdersPage() {
     }
 
     return (
-      <div className="overflow-x-auto w-full">
+      <div className="overflow-x-auto w-full max-h-[520px] overflow-y-auto">
         <table className="w-full min-w-full border-collapse">
           <thead>
             <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>

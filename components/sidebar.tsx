@@ -50,7 +50,7 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <div
-        className={`fixed md:relative top-0 left-0 h-screen w-64 transition-transform duration-300 z-40 ${
+        className={`fixed top-0 left-0 h-screen w-64 transition-transform duration-300 z-40 ${
           isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
         style={{ backgroundColor: '#fde4f2', borderRight: '1px solid #f9cee7' }}

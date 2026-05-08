@@ -313,7 +313,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Invoices Table */}
-      <div className="overflow-x-auto w-full">
+      <div className="overflow-x-auto w-full max-h-[520px] overflow-y-auto">
         {groups.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />

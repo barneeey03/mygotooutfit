@@ -314,7 +314,7 @@ export default function ExpensesPage() {
               <p className="text-xs text-muted-foreground mt-1">Start tracking your expenses</p>
             </div>
           ) : (
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-x-auto w-full max-h-[520px] overflow-y-auto">
               <table className="w-full min-w-full">
                 <thead>
                   <tr className="text-white" style={{ backgroundColor: '#e68bbe' }}>
