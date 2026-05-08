@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 interface InventoryDialogProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ export default function InventoryDialog({
   onSave,
   product,
 }: InventoryDialogProps) {
-  const { brands, categories, addBrand, addCategory } = useData();
+  const { brands, categories, addBrand, addCategory, deleteBrand, deleteCategory } = useData();
   const [formData, setFormData] = useState({
     productName: '',
     brandName: '',
@@ -99,6 +99,41 @@ export default function InventoryDialog({
     }
   };
 
+  const handleDeleteBrand = async () => {
+    if (!formData.brandName) return;
+    const brand = brands.find((b) => b.name === formData.brandName);
+    if (!brand) return;
+
+    if (!confirm(`Delete brand “${brand.name}”? This will remove it from the dropdown.`)) {
+      return;
+    }
+
+    try {
+      await deleteBrand(brand.id);
+      setFormData({ ...formData, brandName: '' });
+    } catch (error) {
+      alert('Failed to delete brand');
+      console.error(error);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!formData.category) return;
+    const category = categories.find((c) => c.name === formData.category);
+    if (!category) return;
+
+    if (!confirm(`Delete category “${category.name}”? This will remove it from the dropdown.`)) {
+      return;
+    }
+
+    try {
+      await deleteCategory(category.id);
+      setFormData({ ...formData, category: '' });
+    } catch (error) {
+      alert('Failed to delete category');
+      console.error(error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,6 +200,17 @@ export default function InventoryDialog({
               >
                 <Plus className="w-4 h-4" />
               </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleDeleteBrand}
+                className="px-2"
+                style={{ borderColor: '#f87171', color: '#f87171' }}
+                disabled={!formData.brandName || isSaving}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
             {showBrandInput && (
               <div className="flex gap-2">
@@ -212,6 +258,17 @@ export default function InventoryDialog({
                 disabled={isSaving}
               >
                 <Plus className="w-4 h-4" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleDeleteCategory}
+                className="px-2"
+                style={{ borderColor: '#f87171', color: '#f87171' }}
+                disabled={!formData.category || isSaving}
+              >
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
             {showCategoryInput && (

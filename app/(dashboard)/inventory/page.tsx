@@ -14,7 +14,7 @@ export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterBrand, setFilterBrand] = useState('');
+  const [filterProductName, setFilterProductName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -22,7 +22,7 @@ export default function InventoryPage() {
 
   const STATUSES = ['In Stock', 'Low Stock', 'Out of Stock'];
 
-  const brandNames = [...new Set(products.map(p => p.brandName))].sort();
+  const productNames = [...new Set(products.map(p => p.productName || ''))].filter((name) => name !== '').sort();
 
   const getProductStatus = (product: Product) => {
     if (product.quantity === 0) return 'Out of Stock';
@@ -38,9 +38,9 @@ export default function InventoryPage() {
     
     const matchesCategory = !filterCategory || p.category === filterCategory;
     const matchesStatus = !filterStatus || getProductStatus(p) === filterStatus;
-    const matchesBrand = !filterBrand || p.brandName === filterBrand;
+    const matchesProductName = !filterProductName || p.productName === filterProductName;
 
-    return matchesSearch && matchesCategory && matchesStatus && matchesBrand;
+    return matchesSearch && matchesCategory && matchesStatus && matchesProductName;
   });
 
 
@@ -117,7 +117,7 @@ export default function InventoryPage() {
           <Search className="absolute left-3 top-10 w-4 h-4 text-muted-foreground" />
           <Input
             id="search"
-            placeholder="Search by brand name, ID, or category..."
+            placeholder="Search by product name, ID, or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-primary/20"
@@ -156,18 +156,18 @@ export default function InventoryPage() {
           </select>
         </div>
         <div>
-          <label htmlFor="brand-filter" className="text-sm font-medium text-muted-foreground mb-2 block">
-            Brand
+          <label htmlFor="product-name-filter" className="text-sm font-medium text-muted-foreground mb-2 block">
+            Product Name
           </label>
           <select
-            id="brand-filter"
-            value={filterBrand}
-            onChange={(e) => setFilterBrand(e.target.value)}
+            id="product-name-filter"
+            value={filterProductName}
+            onChange={(e) => setFilterProductName(e.target.value)}
             className="w-full px-3 py-2 border border-primary/20 rounded-md bg-background text-foreground text-sm"
           >
-            <option value="">All Brands</option>
-            {brandNames.map(brand => (
-              <option key={brand} value={brand}>{brand}</option>
+            <option value="">All Product Names</option>
+            {productNames.map(productName => (
+              <option key={productName} value={productName}>{productName}</option>
             ))}
           </select>
         </div>
