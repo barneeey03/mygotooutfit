@@ -16,7 +16,7 @@ import ConfirmationDialog from '@/components/confirmation-dialog';
 const defaultExpenseTypes = ['Flight Expenses', 'Transportation', 'Food Allowance', 'Medical Expenses', 'Training Expenses', 'Visa Processing', 'Documentation Fees', 'Hotel Accommodation', 'Others'];
 
 export default function ExpensesPage() {
-  const { products, expenses, expenseTypes, brands, addExpense, updateExpense, deleteExpense, syncInventoryToExpenses } = useData();
+  const { expenses, expenseTypes, brands, addExpense, updateExpense, deleteExpense } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('date-desc');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -31,21 +31,6 @@ export default function ExpensesPage() {
       ...brands.map((brand) => brand.name)
     ])).sort();
   }, [expenseTypes, brands]);
-
-  // Automatic sync of inventory to expenses
-  useEffect(() => {
-    const syncAutomatically = async () => {
-      if (products.length > 0 && expenses.length >= 0) {
-        try {
-          await syncInventoryToExpenses();
-        } catch (error) {
-          console.error('Automatic sync failed:', error);
-        }
-      }
-    };
-
-    syncAutomatically();
-  }, [products, expenses, syncInventoryToExpenses]);
 
   const filteredExpenses = expenses.filter(e =>
     e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
